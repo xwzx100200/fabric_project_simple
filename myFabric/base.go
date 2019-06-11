@@ -24,13 +24,16 @@ import (
 	"github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/common/cauthdsl"
 	cb "github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/protos/common"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	"go/build"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
+	"github.com/op/go-logging"
 )
 
 // BaseSetupImpl implementation of BaseTestSetup
@@ -47,8 +50,6 @@ type BaseSetupImpl struct {
 const (
 	ExampleCCInitB    = "200"
 	ExampleCCUpgradeB = "400"
-	AdminUser         = "Admin"
-	OrdererOrgName    = "OrdererOrg"
 	keyExp            = "key-%s-%s"
 )
 
@@ -61,43 +62,64 @@ var initArgs = [][]byte{[]byte("init"), []byte("a"), []byte("100"), []byte("b"),
 var upgradeArgs = [][]byte{[]byte("init"), []byte("a"), []byte("100"), []byte("b"), []byte(ExampleCCUpgradeB)}
 var resetArgs = [][]byte{[]byte("a"), []byte("100"), []byte("b"), []byte(ExampleCCInitB)}
 
-// ExampleCCDefaultQueryArgs returns example cc query args
-func ExampleCCDefaultQueryArgs() [][]byte {
+var logger  *logging.Logger
+
+//initConfig initializes viper config
+func InitConfig() error {
+	// viper init
+
+	viper.AddConfigPath("./")
+	viper.SetConfigName("core")
+
+	viper.SetEnvPrefix(PROJECT_NAME)
+	viper.AutomaticEnv()
+	replacer := strings.NewReplacer(".", "_")
+	viper.SetEnvKeyReplacer(replacer)
+	err := viper.ReadInConfig()
+	if err != nil {
+		return fmt.Errorf("fatal error config file: %s ", err)
+	}
+	return nil
+}
+
+
+// CCDefaultQueryArgs returns  cc query args
+func CCDefaultQueryArgs() [][]byte {
 	return defaultQueryArgs
 }
 
-// ExampleCCQueryArgs returns example cc query args
-func ExampleCCQueryArgs(key string) [][]byte {
+// CCQueryArgs returns  cc query args
+func CCQueryArgs(key string) [][]byte {
 	return [][]byte{[]byte("query"), []byte(key)}
 }
 
-// ExampleCCTxArgs returns example cc query args
-func ExampleCCTxArgs(from, to, val string) [][]byte {
+// CCTxArgs returns  cc query args
+func CCTxArgs(from, to, val string) [][]byte {
 	return [][]byte{[]byte("move"), []byte(from), []byte(to), []byte(val)}
 }
 
-// ExampleCCDefaultTxArgs returns example cc move funds args
-func ExampleCCDefaultTxArgs() [][]byte {
+// CCDefaultTxArgs returns  cc move funds args
+func CCDefaultTxArgs() [][]byte {
 	return defaultTxArgs
 }
 
-// ExampleCCTxRandomSetArgs returns example cc set args with random key-value pairs
-func ExampleCCTxRandomSetArgs() [][]byte {
+// CCTxRandomSetArgs returns  cc set args with random key-value pairs
+func CCTxRandomSetArgs() [][]byte {
 	return [][]byte{[]byte("set"), []byte(GenerateRandomID()), []byte(GenerateRandomID())}
 }
 
-//ExampleCCTxSetArgs sets the given key value in examplecc
-func ExampleCCTxSetArgs(key, value string) [][]byte {
+//CCTxSetArgs sets the given key value in cc
+func CCTxSetArgs(key, value string) [][]byte {
 	return [][]byte{[]byte("set"), []byte(key), []byte(value)}
 }
 
-//ExampleCCInitArgs returns example cc initialization args
-func ExampleCCInitArgs() [][]byte {
+//CCInitArgs returns  cc initialization args
+func CCInitArgs() [][]byte {
 	return initArgs
 }
 
-//ExampleCCUpgradeArgs returns example cc upgrade args
-func ExampleCCUpgradeArgs() [][]byte {
+//CCUpgradeArgs returns  cc upgrade args
+func CCUpgradeArgs() [][]byte {
 	return upgradeArgs
 }
 
@@ -119,7 +141,7 @@ func IsJoinedChannel(channelID string, resMgmtClient *resmgmt.Client, peer fabAP
 func (setup *BaseSetupImpl) Initialize(sdk *fabsdk.FabricSDK) error {
 
 	mspClient, err := mspclient.New(sdk.Context(), mspclient.WithOrg(setup.OrgID))
-	adminIdentity, err := mspClient.GetSigningIdentity(AdminUser)
+	adminIdentity, err := mspClient.GetSigningIdentity(GetSDKAdmins()[0])
 	if err != nil {
 		return errors.WithMessage(err, "failed to get client context")
 	}
@@ -129,7 +151,7 @@ func (setup *BaseSetupImpl) Initialize(sdk *fabsdk.FabricSDK) error {
 	configBackend, err := sdk.Config()
 	if err != nil {
 		//For some tests SDK may not have backend set, try with config file if backend is missing
-		cfgBackends, err = ConfigBackend()
+		cfgBackends = append(cfgBackends, configBackend)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get config backend from config: %s", err)
 		}
@@ -172,25 +194,25 @@ func GetDeployPath() string {
 
 // GetChannelConfigPath returns the path to the named channel config file
 func GetChannelConfigPath(filename string) string {
-	return path.Join(goPath(), "src", Project, ChannelConfigPath, filename)
+	return path.Join(goPath(), "src", PROJECT_NAME, GetChannelConfig(), filename)
 }
 
 // GetConfigPath returns the path to the named config fixture file
 func GetConfigPath(filename string) string {
 	const configPath = "fixtures/config"
-	return path.Join(goPath(), "src", Project, configPath, filename)
+	return path.Join(goPath(), "src", PROJECT_NAME, configPath, filename)
 }
 
 // GetConfigOverridesPath returns the path to the named config override fixture file
 func GetConfigOverridesPath(filename string) string {
 	const configPath = "fixtures/config"
-	return path.Join(goPath(), "src", Project, configPath, "overrides", filename)
+	return path.Join(goPath(), "src", PROJECT_NAME, configPath, "overrides", filename)
 }
 
 // GetCryptoConfigPath returns the path to the named crypto-config override fixture file
 func GetCryptoConfigPath(filename string) string {
 	const configPath = "fixtures/fabric/v1/crypto-config"
-	return path.Join(goPath(), "src", Project, configPath, filename)
+	return path.Join(goPath(), "src", PROJECT_NAME, configPath, filename)
 }
 
 // goPath returns the current GOPATH. If the system
@@ -214,7 +236,7 @@ type OrgContext struct {
 
 // CreateChannelAndUpdateAnchorPeers creates the channel and updates all of the anchor peers for all orgs
 func CreateChannelAndUpdateAnchorPeers(t *testing.T, sdk *fabsdk.FabricSDK, channelID string, channelConfigFile string, orgsContext []*OrgContext) error {
-	ordererCtx := sdk.Context(fabsdk.WithUser(AdminUser), fabsdk.WithOrg(OrdererOrgName))
+	ordererCtx := sdk.Context(fabsdk.WithUser(GetSDKAdmins()[0]), fabsdk.WithOrg(GetSDKOrders()[0]))
 
 	// Channel management client is responsible for managing channels (create/update channel)
 	chMgmtClient, err := resmgmt.New(ordererCtx)
@@ -478,7 +500,7 @@ func ResetKeys(t *testing.T, ctx contextAPI.ChannelProvider, chaincodeID, value 
 			channel.Request{
 				ChaincodeID: chaincodeID,
 				Fcn:         "invoke",
-				Args:        ExampleCCTxSetArgs(key, value),
+				Args:        CCTxSetArgs(key, value),
 			},
 			channel.WithRetry(retry.DefaultChannelOpts))
 		require.NoError(t, e, "Failed to reset keys")
@@ -502,7 +524,7 @@ func SetKeyData(ctx contextAPI.ChannelProvider, chaincodeID, value string, key s
 		channel.Request{
 			ChaincodeID: chaincodeID,
 			Fcn:         "invoke",
-			Args:        ExampleCCTxSetArgs(key, value),
+			Args:        CCTxSetArgs(key, value),
 		},
 		channel.WithRetry(retry.DefaultChannelOpts))
 
@@ -520,7 +542,7 @@ func GetValueFromKey(chClient *channel.Client,ccID, key string) string{
 	)
 
 	for r := 0; r < maxRetries; r++ {
-		response, err := chClient.Query(channel.Request{ChaincodeID: ccID, Fcn: "invoke", Args: ExampleCCQueryArgs(key)},
+		response, err := chClient.Query(channel.Request{ChaincodeID: ccID, Fcn: "invoke", Args: CCQueryArgs(key)},
 			channel.WithRetry(retry.DefaultChannelOpts))
 		if err == nil {
 			actual := string(response.Payload)

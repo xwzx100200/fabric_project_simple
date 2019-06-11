@@ -11,6 +11,10 @@ import (
 	contextApi "github.com/hyperledger/fabric-sdk-go/pkg/common/providers/context"
 )
 
+const (
+	PROJECT_NAME = "myFabric"
+)
+
 var(
 
 	mainSDK *fabsdk.FabricSDK
@@ -37,6 +41,11 @@ func main(){
 
 	fmt.Println("come to main")
 
+	//init core.yml  加载配置文件
+	if err = InitConfig(); err != nil {
+		// Handle errors reading the config file
+		panic(fmt.Errorf("fatal error when initializing config : %s", err))
+	}
 
 	//init
 	r := NewWithExampleCC()

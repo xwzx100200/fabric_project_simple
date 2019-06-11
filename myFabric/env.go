@@ -15,24 +15,24 @@ import (
 )
 
 const (
-	configPath = "fixtures/config/config_test.yaml"
+	//configPath = "fixtures/config/config_test.yaml"
 	//entityMatcherLocal config file containing entity matchers for local test
-	entityMatcherLocal = "/fixtures/config/local_entity_matchers.yaml"
+	//entityMatcherLocal = "/fixtures/config/local_entity_matchers.yaml"
 	//ConfigPathSingleOrg single org version of 'configPath' for testing discovery
 	ConfigPathSingleOrg = "${FABRIC_SDK_GO_PROJECT_PATH}/test/fixtures/config/config_e2e_single_org.yaml"
 )
 
 // ConfigBackend contains config backend for integration tests
-var ConfigBackend = fetchConfigBackend(configPath, entityMatcherLocal)
+//var ConfigBackend = fetchConfigBackend()
 
 // fetchConfigBackend returns a ConfigProvider that retrieves config data from the given configPath,
 // or from the given overrides for local testing
-func fetchConfigBackend(configPath string, entityMatcherOverride string) core.ConfigProvider {
-	configProvider := config.FromFile(pathvar.Subst(configPath))
+func fetchConfigBackend() core.ConfigProvider {
+	configProvider := config.FromFile(pathvar.Subst(GetSDKConfigFile()))
 
 	if IsLocal() {
 		return func() ([]core.ConfigBackend, error) {
-			return appendLocalEntityMappingBackend(configProvider, entityMatcherOverride)
+			return appendLocalEntityMappingBackend(configProvider, GetLocalEntityMatcher())
 		}
 	}
 
@@ -54,7 +54,7 @@ func IsLocal() bool {
 // and returns updated config provider
 func AddLocalEntityMapping(configProvider core.ConfigProvider) core.ConfigProvider {
 	return func() ([]core.ConfigBackend, error) {
-		return appendLocalEntityMappingBackend(configProvider, entityMatcherLocal)
+		return appendLocalEntityMappingBackend(configProvider, GetLocalEntityMatcher())
 	}
 }
 

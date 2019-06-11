@@ -27,27 +27,6 @@ var orgExpectedPeers = map[string]int{
 	"Org2": 2,
 }
 
-const (
-	defaultChannelID    = "mychannel"
-	exampleCCName       = "example_cc"
-	exampleCCPath       = "myFabric/chaincode"
-	exampleCCVersion    = "v0"
-	examplePvtCCName    = "example_pvt_cc"
-	examplePvtCCPath    = "github.com/example_pvt_cc"
-	examplePvtCCVersion = "v0"
-	exampleUpgdPvtCCVer = "v1"
-)
-
-// GenerateExamplePvtID supplies a chaincode name for example_pvt_cc
-func GenerateExamplePvtID(randomize bool) string {
-	suffix := "0"
-	if randomize {
-		suffix = GenerateRandomID()
-	}
-
-	return fmt.Sprintf("%s_%s%s", examplePvtCCName, TestRunID, suffix)
-}
-
 // GenerateExampleID supplies a chaincode name for example_cc
 func GenerateExampleID(randomize bool) string {
 	suffix := "0"
@@ -55,16 +34,15 @@ func GenerateExampleID(randomize bool) string {
 		suffix = GenerateRandomID()
 	}
 
-	return fmt.Sprintf("%s_0%s%s", exampleCCName, TestRunID, suffix)
+	return fmt.Sprintf("%s_0%s", GetChainCodeName(), suffix)
 }
 
 // PrepareExampleCC install and instantiate using resource management client
 func PrepareExampleCC(sdk *fabsdk.FabricSDK, user fabsdk.ContextOption, orgName string, chaincodeID string) error {
-	const (
-		channelID = defaultChannelID
-	)
 
-	instantiated, err := queryInstantiatedCCWithSDK(sdk, user, orgName, channelID, chaincodeID, exampleCCVersion, false)
+	var channelID = GetSDKChannelID()
+
+	instantiated, err := queryInstantiatedCCWithSDK(sdk, user, orgName, channelID, chaincodeID, GetChainCodeVersion(), false)
 	if err != nil {
 		return errors.WithMessage(err, "Querying for instantiated status failed")
 	}
@@ -109,12 +87,12 @@ func PrepareExampleCC(sdk *fabsdk.FabricSDK, user fabsdk.ContextOption, orgName 
 
 // InstallExampleChaincode installs the example chaincode to all peers in the given orgs
 func InstallExampleChaincode(orgs []*OrgContext, ccID string) error {
-	ccPkg, err := packager.NewCCPackage(exampleCCPath, GetDeployPath())
+	ccPkg, err := packager.NewCCPackage(GetChainCodePath(), GetDeployPath())
 	if err != nil {
 		return errors.WithMessage(err, "creating chaincode package failed")
 	}
 
-	err = InstallChaincodeWithOrgContexts(orgs, ccPkg, exampleCCPath, ccID, exampleCCVersion)
+	err = InstallChaincodeWithOrgContexts(orgs, ccPkg, GetChainCodePath(), ccID, GetChainCodeVersion())
 	if err != nil {
 		return errors.WithMessage(err, "installing example chaincode failed")
 	}
@@ -122,49 +100,17 @@ func InstallExampleChaincode(orgs []*OrgContext, ccID string) error {
 	return nil
 }
 
-// InstallExamplePvtChaincode installs the example pvt chaincode to all peers in the given orgs
-func InstallExamplePvtChaincode(orgs []*OrgContext, ccID string) error {
-	ccPkg, err := packager.NewCCPackage(examplePvtCCPath, GetDeployPath())
-	if err != nil {
-		return errors.WithMessage(err, "creating chaincode package failed")
-	}
 
-	err = InstallChaincodeWithOrgContexts(orgs, ccPkg, examplePvtCCPath, ccID, examplePvtCCVersion)
-	if err != nil {
-		return errors.WithMessage(err, "installing example chaincode failed")
-	}
-
-	return nil
-}
 
 // InstantiateExampleChaincode instantiates the example CC on the given channel
 func InstantiateExampleChaincode(orgs []*OrgContext, channelID, ccID, ccPolicy string, collConfigs ...*cb.CollectionConfig) error {
-	_, err := InstantiateChaincode(orgs[0].ResMgmt, channelID, ccID, exampleCCPath, exampleCCVersion, ccPolicy, ExampleCCInitArgs(), collConfigs...)
+	_, err := InstantiateChaincode(orgs[0].ResMgmt, channelID, ccID, GetChainCodePath(), GetChainCodeVersion(), ccPolicy, CCInitArgs(), collConfigs...)
 	return err
 }
 
-// InstantiateExamplePvtChaincode instantiates the example pvt CC on the given channel
-func InstantiateExamplePvtChaincode(orgs []*OrgContext, channelID, ccID, ccPolicy string, collConfigs ...*cb.CollectionConfig) error {
-	_, err := InstantiateChaincode(orgs[0].ResMgmt, channelID, ccID, examplePvtCCPath, examplePvtCCVersion, ccPolicy, ExampleCCInitArgs(), collConfigs...)
-	return err
-}
 
 // UpgradeExamplePvtChaincode upgrades the instantiated example pvt CC on the given channel
-func UpgradeExamplePvtChaincode(orgs []*OrgContext, channelID, ccID, ccPolicy string, collConfigs ...*cb.CollectionConfig) error {
-	// first install the CC with the upgraded cc version
-	ccPkg, err := packager.NewCCPackage(examplePvtCCPath, GetDeployPath())
-	if err != nil {
-		return errors.WithMessage(err, "creating chaincode package failed")
-	}
-	err = InstallChaincodeWithOrgContexts(orgs, ccPkg, examplePvtCCPath, ccID, exampleUpgdPvtCCVer)
-	if err != nil {
-		return errors.WithMessage(err, "installing example chaincode failed")
-	}
 
-	// now upgrade cc
-	_, err = UpgradeChaincode(orgs[0].ResMgmt, channelID, ccID, examplePvtCCPath, exampleUpgdPvtCCVer, ccPolicy, ExampleCCInitArgs(), collConfigs...)
-	return err
-}
 
 func resetExampleCC(sdk *fabsdk.FabricSDK, user fabsdk.ContextOption, orgName string, channelID string, chainCodeID string, args [][]byte) error {
 	clientContext := sdk.ChannelContext(channelID, user, fabsdk.WithOrg(orgName))
