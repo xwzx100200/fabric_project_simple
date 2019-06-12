@@ -8,8 +8,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/spf13/viper"
 	"math/rand"
 	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -31,6 +33,61 @@ const (
 	ordererOrgName  = "OrdererOrg"
 	ordererEndpoint = "orderer.example.com"
 )
+
+//orgs
+func GetSDKOrders() []string{
+	return viper.GetStringSlice("spi.sdk.orders")
+}
+
+//orgs
+func GetSDKOrgs() []string{
+	return viper.GetStringSlice("spi.sdk.orgs")
+}
+
+//admins
+func GetSDKAdmins() []string{
+	return viper.GetStringSlice("spi.sdk.adminUsers")
+}
+
+//users
+func GetSDKUsers() []string{
+	return viper.GetStringSlice("spi.sdk.users")
+}
+
+//channel ID
+func GetSDKChannelID() string{
+	return viper.GetString("spi.sdk.channelID")
+}
+
+//chaincode path
+func GetChainCodePath() string{
+	return path.Join(PROJECT_NAME,viper.GetString("spi.chaincode.path"))
+}
+
+//chaincode version
+func GetChainCodeVersion() string{
+	return viper.GetString("spi.chaincode.version")
+}
+
+//chaincode name
+func GetChainCodeName() string{
+	return viper.GetString("spi.chaincode.name")
+}
+
+//channel config
+func GetChannelConfig() string {
+	return viper.GetString("spi.sdk.channelConfig")
+}
+
+//from core config
+func GetSDKConfigFile() string {
+	return viper.GetString("spi.sdk.configPath")
+}
+
+func GetLocalEntityMatcher() string {
+	return viper.GetString("spi.sdk.localEntityMatcher")
+}
+
 
 // GenerateRandomID generates random ID
 func GenerateRandomID() string {

@@ -1,0 +1,35 @@
+###############################################################################
+#
+#    App section
+#
+###############################################################################
+spi:
+
+    rest:
+        # The Address this App will bind to for providing services
+        address: 0.0.0.0:5984
+
+    # Setting for runtime.GOMAXPROCS(n). If n < 1, it does not change the current setting
+    goMaxProcs: -1
+
+     # Logging
+    logging:
+        level: info
+        format: '%{color}%{time:2006-01-02 15:04:05.000 MST} [%{module}] %{shortfunc} -> %{level:.4s} %{id:03x}%{color:reset} %{message}'
+        prefix: spi_
+
+    chaincode: 
+        # chiancode 绝对路径的前一部分，默认为GOPATH
+        path: chaincode
+        name: cc
+        version: v0
+
+    sdk:
+        configPath: fixtures/config/config_test.yaml
+        localEntityMatcher: fixtures/config/local_entity_matchers.yaml
+        orgs: [Org1,Org2]
+        users: [User1,User2]
+        adminUsers: [Admin,Admin]
+        orders: [OrdererOrg]
+        channelID: mychannel
+        channelConfig: fixtures/fabric/v1.4/channel

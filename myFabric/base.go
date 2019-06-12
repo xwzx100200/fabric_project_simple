@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	mspclient "github.com/hyperledger/fabric-sdk-go/pkg/client/msp"
@@ -24,13 +25,20 @@ import (
 	"github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/common/cauthdsl"
 	cb "github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/protos/common"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	"go/build"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
+	"github.com/op/go-logging"
+	"github.com/hyperledger/fabric-sdk-go/pkg/client/ledger"
+	google_protobuf "github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/protos/utils"
+	"github.com/golang/protobuf/proto"
 )
 
 // BaseSetupImpl implementation of BaseTestSetup
@@ -41,14 +49,17 @@ type BaseSetupImpl struct {
 	OrgID             string
 	ChannelID         string
 	ChannelConfigFile string
+
+	ledgerClient      *ledger.Client
+	chClient          *channel.Client
+	ChainCodeID		  string
+	orgChannelClientContext contextAPI.ChannelProvider
 }
 
 // Initial B values for ExampleCC
 const (
 	ExampleCCInitB    = "200"
 	ExampleCCUpgradeB = "400"
-	AdminUser         = "Admin"
-	OrdererOrgName    = "OrdererOrg"
 	keyExp            = "key-%s-%s"
 )
 
@@ -61,43 +72,64 @@ var initArgs = [][]byte{[]byte("init"), []byte("a"), []byte("100"), []byte("b"),
 var upgradeArgs = [][]byte{[]byte("init"), []byte("a"), []byte("100"), []byte("b"), []byte(ExampleCCUpgradeB)}
 var resetArgs = [][]byte{[]byte("a"), []byte("100"), []byte("b"), []byte(ExampleCCInitB)}
 
-// ExampleCCDefaultQueryArgs returns example cc query args
-func ExampleCCDefaultQueryArgs() [][]byte {
+var logger  *logging.Logger
+
+//initConfig initializes viper config
+func InitConfig() error {
+	// viper init
+
+	viper.AddConfigPath("./")
+	viper.SetConfigName("core")
+
+	viper.SetEnvPrefix(PROJECT_NAME)
+	viper.AutomaticEnv()
+	replacer := strings.NewReplacer(".", "_")
+	viper.SetEnvKeyReplacer(replacer)
+	err := viper.ReadInConfig()
+	if err != nil {
+		return fmt.Errorf("fatal error config file: %s ", err)
+	}
+	return nil
+}
+
+
+// CCDefaultQueryArgs returns  cc query args
+func CCDefaultQueryArgs() [][]byte {
 	return defaultQueryArgs
 }
 
-// ExampleCCQueryArgs returns example cc query args
-func ExampleCCQueryArgs(key string) [][]byte {
+// CCQueryArgs returns  cc query args
+func CCQueryArgs(key string) [][]byte {
 	return [][]byte{[]byte("query"), []byte(key)}
 }
 
-// ExampleCCTxArgs returns example cc query args
-func ExampleCCTxArgs(from, to, val string) [][]byte {
+// CCTxArgs returns  cc query args
+func CCTxArgs(from, to, val string) [][]byte {
 	return [][]byte{[]byte("move"), []byte(from), []byte(to), []byte(val)}
 }
 
-// ExampleCCDefaultTxArgs returns example cc move funds args
-func ExampleCCDefaultTxArgs() [][]byte {
+// CCDefaultTxArgs returns  cc move funds args
+func CCDefaultTxArgs() [][]byte {
 	return defaultTxArgs
 }
 
-// ExampleCCTxRandomSetArgs returns example cc set args with random key-value pairs
-func ExampleCCTxRandomSetArgs() [][]byte {
+// CCTxRandomSetArgs returns  cc set args with random key-value pairs
+func CCTxRandomSetArgs() [][]byte {
 	return [][]byte{[]byte("set"), []byte(GenerateRandomID()), []byte(GenerateRandomID())}
 }
 
-//ExampleCCTxSetArgs sets the given key value in examplecc
-func ExampleCCTxSetArgs(key, value string) [][]byte {
+//CCTxSetArgs sets the given key value in cc
+func CCTxSetArgs(key, value string) [][]byte {
 	return [][]byte{[]byte("set"), []byte(key), []byte(value)}
 }
 
-//ExampleCCInitArgs returns example cc initialization args
-func ExampleCCInitArgs() [][]byte {
+//CCInitArgs returns  cc initialization args
+func CCInitArgs() [][]byte {
 	return initArgs
 }
 
-//ExampleCCUpgradeArgs returns example cc upgrade args
-func ExampleCCUpgradeArgs() [][]byte {
+//CCUpgradeArgs returns  cc upgrade args
+func CCUpgradeArgs() [][]byte {
 	return upgradeArgs
 }
 
@@ -119,7 +151,7 @@ func IsJoinedChannel(channelID string, resMgmtClient *resmgmt.Client, peer fabAP
 func (setup *BaseSetupImpl) Initialize(sdk *fabsdk.FabricSDK) error {
 
 	mspClient, err := mspclient.New(sdk.Context(), mspclient.WithOrg(setup.OrgID))
-	adminIdentity, err := mspClient.GetSigningIdentity(AdminUser)
+	adminIdentity, err := mspClient.GetSigningIdentity(GetSDKAdmins()[0])
 	if err != nil {
 		return errors.WithMessage(err, "failed to get client context")
 	}
@@ -129,7 +161,7 @@ func (setup *BaseSetupImpl) Initialize(sdk *fabsdk.FabricSDK) error {
 	configBackend, err := sdk.Config()
 	if err != nil {
 		//For some tests SDK may not have backend set, try with config file if backend is missing
-		cfgBackends, err = ConfigBackend()
+		cfgBackends = append(cfgBackends, configBackend)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get config backend from config: %s", err)
 		}
@@ -172,25 +204,25 @@ func GetDeployPath() string {
 
 // GetChannelConfigPath returns the path to the named channel config file
 func GetChannelConfigPath(filename string) string {
-	return path.Join(goPath(), "src", Project, ChannelConfigPath, filename)
+	return path.Join(goPath(), "src", PROJECT_NAME, GetChannelConfig(), filename)
 }
 
 // GetConfigPath returns the path to the named config fixture file
 func GetConfigPath(filename string) string {
 	const configPath = "fixtures/config"
-	return path.Join(goPath(), "src", Project, configPath, filename)
+	return path.Join(goPath(), "src", PROJECT_NAME, configPath, filename)
 }
 
 // GetConfigOverridesPath returns the path to the named config override fixture file
 func GetConfigOverridesPath(filename string) string {
 	const configPath = "fixtures/config"
-	return path.Join(goPath(), "src", Project, configPath, "overrides", filename)
+	return path.Join(goPath(), "src", PROJECT_NAME, configPath, "overrides", filename)
 }
 
 // GetCryptoConfigPath returns the path to the named crypto-config override fixture file
 func GetCryptoConfigPath(filename string) string {
 	const configPath = "fixtures/fabric/v1/crypto-config"
-	return path.Join(goPath(), "src", Project, configPath, filename)
+	return path.Join(goPath(), "src", PROJECT_NAME, configPath, filename)
 }
 
 // goPath returns the current GOPATH. If the system
@@ -214,7 +246,7 @@ type OrgContext struct {
 
 // CreateChannelAndUpdateAnchorPeers creates the channel and updates all of the anchor peers for all orgs
 func CreateChannelAndUpdateAnchorPeers(t *testing.T, sdk *fabsdk.FabricSDK, channelID string, channelConfigFile string, orgsContext []*OrgContext) error {
-	ordererCtx := sdk.Context(fabsdk.WithUser(AdminUser), fabsdk.WithOrg(OrdererOrgName))
+	ordererCtx := sdk.Context(fabsdk.WithUser(GetSDKAdmins()[0]), fabsdk.WithOrg(GetSDKOrders()[0]))
 
 	// Channel management client is responsible for managing channels (create/update channel)
 	chMgmtClient, err := resmgmt.New(ordererCtx)
@@ -478,7 +510,7 @@ func ResetKeys(t *testing.T, ctx contextAPI.ChannelProvider, chaincodeID, value 
 			channel.Request{
 				ChaincodeID: chaincodeID,
 				Fcn:         "invoke",
-				Args:        ExampleCCTxSetArgs(key, value),
+				Args:        CCTxSetArgs(key, value),
 			},
 			channel.WithRetry(retry.DefaultChannelOpts))
 		require.NoError(t, e, "Failed to reset keys")
@@ -502,7 +534,7 @@ func SetKeyData(ctx contextAPI.ChannelProvider, chaincodeID, value string, key s
 		channel.Request{
 			ChaincodeID: chaincodeID,
 			Fcn:         "invoke",
-			Args:        ExampleCCTxSetArgs(key, value),
+			Args:        CCTxSetArgs(key, value),
 		},
 		channel.WithRetry(retry.DefaultChannelOpts))
 
@@ -520,7 +552,7 @@ func GetValueFromKey(chClient *channel.Client,ccID, key string) string{
 	)
 
 	for r := 0; r < maxRetries; r++ {
-		response, err := chClient.Query(channel.Request{ChaincodeID: ccID, Fcn: "invoke", Args: ExampleCCQueryArgs(key)},
+		response, err := chClient.Query(channel.Request{ChaincodeID: ccID, Fcn: "invoke", Args: CCQueryArgs(key)},
 			channel.WithRetry(retry.DefaultChannelOpts))
 		if err == nil {
 			actual := string(response.Payload)
@@ -533,4 +565,134 @@ func GetValueFromKey(chClient *channel.Client,ccID, key string) string{
 	}
 
 	return ""
+}
+
+type BlockchainInfo struct {
+	Height            uint64 `json:"height"`
+	CurrentBlockHash  string `json:"currentBlockHash"`
+	PreviousBlockHash string `json:"previousBlockHash"`
+}
+
+// GetBlockchainInfo ...
+func (setup *BaseSetupImpl) GetBlockchainInfo() (BlockchainInfo, error) {
+	var blockchainInfo BlockchainInfo
+	b, err := setup.ledgerClient.QueryInfo()
+	if err != nil {
+		return blockchainInfo, err
+	}
+	blockchainInfo.Height = b.BCI.Height
+	blockchainInfo.CurrentBlockHash = base64.StdEncoding.EncodeToString(b.BCI.CurrentBlockHash)
+	blockchainInfo.PreviousBlockHash = base64.StdEncoding.EncodeToString(b.BCI.PreviousBlockHash)
+
+	return blockchainInfo, nil
+}
+
+type Block struct {
+	Version           int           `protobuf:"bytes,1,opt,name=version" json:"version"`
+	Timestamp         string        `protobuf:"bytes,2,opt,name=timestamp" json:"timestamp"`
+	Transactions      []Transaction `protobuf:"bytes,3,opt,name=transactions" json:"transactions"`
+	StateHash         string        `protobuf:"bytes,4,opt,name=stateHash" json:"stateHash"`
+	PreviousBlockHash string        `protobuf:"bytes,5,opt,name=previousBlockHash" json:"previousBlockHash"`
+	// NonHashData       LocalLedgerCommitTimestamp `protobuf:"bytes,6,opt,name=nonHashData" json:"nonHashData,omitempty"`
+}
+
+type Transaction struct {
+	Type        int32                     `protobuf:"bytes,1,opt,name=type" json:"type"`
+	ChaincodeID string                    `protobuf:"bytes,2,opt,name=chaincodeID" json:"chaincodeID"`
+	Payload     string                    `protobuf:"bytes,3,opt,name=payload" json:"payload"`
+	UUID        string                    `protobuf:"bytes,4,opt,name=uuid" json:"uuid"`
+	Timestamp   google_protobuf.Timestamp `protobuf:"bytes,5,opt,name=timestamp" json:"timestamp"`
+	Cert        string                    `protobuf:"bytes,6,opt,name=cert" json:"cert"`
+	Signature   string                    `protobuf:"bytes,7,opt,name=signature" json:"signature"`
+}
+
+// GetBlock ...
+func (setup *BaseSetupImpl) GetBlock(num uint64) (Block, error) {
+	var block Block
+	block.Transactions = make([]Transaction, 0)
+
+	b, err := setup.ledgerClient.QueryBlock(num)
+	if err != nil {
+		return block, nil
+	}
+
+	block.StateHash = base64.StdEncoding.EncodeToString(b.Header.DataHash)
+	block.PreviousBlockHash = base64.StdEncoding.EncodeToString(b.Header.PreviousHash)
+
+	for i := 0; i < len(b.Data.Data); i++ {
+		// parse block
+		envelope, err := utils.ExtractEnvelope(b, i)
+
+		if err != nil {
+			return block, err
+		}
+
+		payload, err := utils.ExtractPayload(envelope)
+		if err != nil {
+			return block, err
+		}
+
+		channelHeader, err := utils.UnmarshalChannelHeader(payload.Header.ChannelHeader)
+		if err != nil {
+			return block, err
+		}
+
+		block.Version = int(cb.HeaderType(channelHeader.Type))
+		switch cb.HeaderType(channelHeader.Type) {
+		case cb.HeaderType_MESSAGE:
+			break
+		case cb.HeaderType_CONFIG:
+			configEnvelope := &cb.ConfigEnvelope{}
+			if err := proto.Unmarshal(payload.Data, configEnvelope); err != nil {
+				return block, err
+			}
+			break
+		case cb.HeaderType_CONFIG_UPDATE:
+			configUpdateEnvelope := &cb.ConfigUpdateEnvelope{}
+			if err := proto.Unmarshal(payload.Data, configUpdateEnvelope); err != nil {
+				return block, err
+			}
+			break
+		case cb.HeaderType_ENDORSER_TRANSACTION:
+			tx, err := utils.GetTransaction(payload.Data)
+			if err != nil {
+				return block, err
+			}
+
+			channelHeader := &cb.ChannelHeader{}
+			if err := proto.Unmarshal(payload.Header.ChannelHeader, channelHeader); err != nil {
+				return block, err
+			}
+
+			signatureHeader := &cb.SignatureHeader{}
+			if err := proto.Unmarshal(payload.Header.SignatureHeader, signatureHeader); err != nil {
+				return block, err
+			}
+
+			for _, action := range tx.Actions {
+				var transaction Transaction
+				transaction.ChaincodeID = setup.ChainCodeID
+				transaction.Payload = base64.StdEncoding.EncodeToString(action.Payload)
+
+				transaction.Type = channelHeader.Type
+				transaction.UUID = channelHeader.TxId
+				transaction.Cert = base64.StdEncoding.EncodeToString(signatureHeader.Creator)
+				transaction.Signature = base64.StdEncoding.EncodeToString(envelope.Signature)
+				if channelHeader != nil && channelHeader.Timestamp != nil {
+					transaction.Timestamp.Seconds = channelHeader.Timestamp.Seconds
+					transaction.Timestamp.Nanos = channelHeader.Timestamp.Nanos
+				}
+
+				block.Transactions = append(block.Transactions, transaction)
+			}
+			break
+		case cb.HeaderType_ORDERER_TRANSACTION:
+			break
+		case cb.HeaderType_DELIVER_SEEK_INFO:
+			break
+		default:
+			return block, fmt.Errorf("Unknown message")
+		}
+	}
+	return block, nil
 }

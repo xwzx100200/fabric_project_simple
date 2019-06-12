@@ -9,7 +9,20 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="FileEditorManager">
-    <leaf />
+    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/main.go">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="416">
+              <caret line="147" lean-forward="true" selection-start-line="147" selection-end-line="147" />
+              <folding>
+                <element signature="e#14#392#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+    </leaf>
   </component>
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
@@ -20,24 +33,7 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>org1ChannelClientContext</find>
-      <find>SetKeyData</find>
-      <find>GetProjectPath</find>
-      <find>github.com/hyperledger/fabric-sdk-go/internal/</find>
-      <find>logger</find>
-      <find>GetChainCodeName</find>
-      <find>ChannelConfigPath</find>
-      <find>InstallChaincodeWithOrgContexts</find>
-      <find>Invoke</find>
-      <find>return [][]byte{[]byte(&quot;set&quot;), []byte(key), []byte(value)}</find>
-      <find>CCQueryArgs</find>
-      <find>metadata</find>
-      <find>CRYPTOCONFIG_FIXTURES_PATH</find>
-      <find>CryptoConfigPath</find>
-      <find>${GOPATH}/src/github.com/hyperledger/fabric-sdk-go/${CRYPTOCONFIG_FIXTURES_PATH}</find>
-      <find>open /Users/i2p/go/src/github.com/hyperledger/fabric-sdk-go/fixtures/fabric/</find>
       <find>shim</find>
-      <find>ccPath</find>
       <find>GetChannelConfigPath</find>
       <find>fixtures/testdata/src</find>
       <find>chaincode/src/</find>
@@ -45,10 +41,28 @@
       <find>goPath</find>
       <find>GetDeployPath</find>
       <find>src/</find>
-      <find>exampleCCPath</find>
       <find>CCPath</find>
       <find>creating chaincode package failed</find>
       <find>creating chaincode package</find>
+      <find>viper</find>
+      <find>configPath</find>
+      <find>Example</find>
+      <find>AdminUser</find>
+      <find>channelID</find>
+      <find>exampleCCName</find>
+      <find>exampleCCPath</find>
+      <find>exampleCCVersion</find>
+      <find>examplePvtCCName</find>
+      <find>examplePvtCCPath</find>
+      <find>examplePvtCCVersion</find>
+      <find>exampleUpgdPvtCCVer</find>
+      <find>orgExpectedPeers</find>
+      <find>ccPath</find>
+      <find>PROJECT_NAME</find>
+      <find>proto</find>
+      <find>TestSetup</find>
+      <find>mainTestSetup</find>
+      <find>ExampleChaincodeID</find>
     </findStrings>
     <replaceStrings>
       <replace />
@@ -64,15 +78,19 @@
         <option value="$PROJECT_DIR$/vendor/github.com/hyperledger/fabric-sdk-go/pkg/msp/test/mockmsp/mockfabriccaserver.go" />
         <option value="$PROJECT_DIR$/vendor/github.com/hyperledger/fabric-sdk-go/pkg/util/pathvar/subst.go" />
         <option value="$PROJECT_DIR$/vendor/github.com/hyperledger/fabric-sdk-go/pkg/fab/mocks/mockconfig.go" />
-        <option value="$PROJECT_DIR$/utils.go" />
-        <option value="$PROJECT_DIR$/env.go" />
         <option value="$PROJECT_DIR$/vendor/github.com/hyperledger/fabric-sdk-go/pkg/util/pathvar/subst_test.go" />
         <option value="$PROJECT_DIR$/fixtures/config/config_test.yaml" />
-        <option value="$PROJECT_DIR$/main.go" />
+        <option value="$PROJECT_DIR$/chaincode/example_cc.go" />
+        <option value="$PROJECT_DIR$/core.yml" />
+        <option value="$PROJECT_DIR$/utils.go" />
+        <option value="$PROJECT_DIR$/env.go" />
         <option value="$PROJECT_DIR$/metadata.go" />
-        <option value="$PROJECT_DIR$/runner.go" />
         <option value="$PROJECT_DIR$/prepare.go" />
+        <option value="$PROJECT_DIR$/tools/ccClean.sh" />
+        <option value="$PROJECT_DIR$/chain.go" />
         <option value="$PROJECT_DIR$/base.go" />
+        <option value="$PROJECT_DIR$/runner.go" />
+        <option value="$PROJECT_DIR$/main.go" />
       </list>
     </option>
   </component>
@@ -87,7 +105,26 @@
     </navigator>
     <panes>
       <pane id="Scope" />
-      <pane id="ProjectPane" />
+      <pane id="ProjectPane">
+        <subPane>
+          <expand>
+            <path>
+              <item name="myFabric" type="b2602c69:ProjectViewProjectNode" />
+              <item name="myFabric" type="47feb1d3:ProjectViewModuleNode" />
+            </path>
+            <path>
+              <item name="myFabric" type="b2602c69:ProjectViewProjectNode" />
+              <item name="myFabric" type="47feb1d3:ProjectViewModuleNode" />
+              <item name="myFabric" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="myFabric" type="b2602c69:ProjectViewProjectNode" />
+              <item name="External Libraries" type="cb654da1:ExternalLibrariesNode" />
+            </path>
+          </expand>
+          <select />
+        </subPane>
+      </pane>
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -101,8 +138,8 @@
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/chaincode" />
       <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/chaincode" />
     </key>
   </component>
   <component name="RunDashboard">
@@ -133,23 +170,33 @@
       </list>
     </recent_temporary>
   </component>
+  <component name="TodoView">
+    <todo-panel id="selected-file">
+      <is-autoscroll-to-source value="true" />
+    </todo-panel>
+    <todo-panel id="all">
+      <are-packages-shown value="true" />
+      <is-autoscroll-to-source value="true" />
+    </todo-panel>
+  </component>
   <component name="ToolWindowManager">
     <frame x="0" y="23" width="1440" height="877" extended-state="6" />
+    <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.27038628" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.27753934" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
-      <window_info anchor="bottom" id="Find" order="1" />
-      <window_info anchor="bottom" id="Run" order="2" weight="0.3987261" />
+      <window_info anchor="bottom" id="Find" order="1" weight="0.3299363" />
+      <window_info anchor="bottom" id="Run" order="2" weight="0.26496816" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
-      <window_info anchor="bottom" id="TODO" order="6" />
+      <window_info anchor="bottom" id="TODO" order="6" weight="0.3299363" />
       <window_info anchor="bottom" id="Docker" order="7" show_stripe_button="false" />
       <window_info anchor="bottom" id="Database Changes" order="8" />
       <window_info anchor="bottom" id="Version Control" order="9" />
-      <window_info anchor="bottom" id="Terminal" order="10" />
+      <window_info anchor="bottom" id="Terminal" order="10" weight="0.3299363" />
       <window_info anchor="bottom" id="Event Log" order="11" side_tool="true" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
@@ -187,23 +234,9 @@
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/../github.com/hyperledger/fabric-sdk-go-bk/fabric-sdk-go-1.0.0-alpha4/test/metadata/metadata.go" />
-    <entry file="file://$PROJECT_DIR$/utils.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="240">
-          <caret line="38" selection-start-line="38" selection-end-line="38" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/fixtures/dockerenv/docker-compose.yaml">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-29" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/env.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="487">
-          <caret line="100" lean-forward="true" selection-start-line="100" selection-end-line="100" />
-        </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/vendor/github.com/hyperledger/fabric-sdk-go/pkg/core/config/testdata/config_test_embedded_pems.yaml">
@@ -252,20 +285,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/chaincode/example_cc.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="259">
-          <caret line="29" column="49" selection-start-line="29" selection-start-column="40" selection-end-line="29" selection-end-column="49" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/metadata.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="150">
-          <caret line="10" column="4" selection-start-line="10" selection-start-column="4" selection-end-line="10" selection-end-column="4" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/fixtures/config/config_test.yaml">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="194">
@@ -273,33 +292,117 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/main.go">
+    <entry file="file://$PROJECT_DIR$/vendor/github.com/hyperledger/fabric-sdk-go/pkg/client/channel/chclientrun.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="487">
-          <caret line="77" selection-start-line="77" selection-end-line="77" />
+        <state relative-caret-position="420">
+          <caret line="33" column="5" selection-start-line="33" selection-start-column="5" selection-end-line="33" selection-end-column="5" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/runner.go">
+    <entry file="file://$PROJECT_DIR$/vendor/github.com/hyperledger/fabric-sdk-go/pkg/client/channel/chclient.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="153">
-          <caret line="116" column="25" lean-forward="true" selection-start-line="116" selection-start-column="25" selection-end-line="116" selection-end-column="25" />
+        <state relative-caret-position="1170">
+          <caret line="92" column="18" selection-start-line="92" selection-start-column="18" selection-end-line="92" selection-end-column="18" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/base.go">
+    <entry file="file://$PROJECT_DIR$/chaincode/cc.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="163">
-          <caret line="167" column="32" lean-forward="true" selection-start-line="167" selection-start-column="32" selection-end-line="167" selection-end-column="32" />
+        <state relative-caret-position="499">
+          <caret line="342" lean-forward="true" selection-start-line="342" selection-end-line="342" />
+          <folding>
+            <element signature="e#693#850#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/vendor/github.com/spf13/viper/viper.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="182">
+          <caret line="352" column="5" selection-start-line="352" selection-start-column="5" selection-end-line="352" selection-end-column="5" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/vendor/github.com/hyperledger/fabric-sdk-go/pkg/fab/ccpackager/gopackager/packager_test.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="720">
+          <caret line="60" column="23" selection-start-line="60" selection-start-column="23" selection-end-line="60" selection-end-column="23" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/prepare.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="128">
-          <caret line="111" column="61" selection-start-line="111" selection-start-column="61" selection-end-line="111" selection-end-column="61" />
+        <state relative-caret-position="300">
+          <caret line="20" column="47" selection-start-line="20" selection-start-column="47" selection-end-line="20" selection-end-column="47" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/metadata.go" />
+    <entry file="file://$PROJECT_DIR$/utils.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="630">
+          <caret line="62" column="21" selection-start-line="62" selection-start-column="5" selection-end-line="62" selection-end-column="21" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tools/allClean.sh">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="45">
+          <caret line="3" column="1" lean-forward="true" selection-start-line="3" selection-start-column="1" selection-end-line="3" selection-end-column="33" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tools/ccClean.sh">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="450">
+          <caret line="30" selection-start-line="30" selection-end-line="30" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/env.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="225">
+          <caret line="29" column="5" selection-start-line="29" selection-start-column="5" selection-end-line="29" selection-end-column="25" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/core.yml">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="315">
+          <caret line="21" column="39" lean-forward="true" selection-start-line="21" selection-start-column="39" selection-end-line="21" selection-end-column="39" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/chain.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="422">
+          <caret line="61" selection-start-line="61" selection-end-line="61" />
           <folding>
-            <element signature="e#116#745#0" expanded="true" />
+            <element signature="e#14#86#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/base.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-7735">
+          <caret line="40" column="38" selection-start-line="40" selection-start-column="38" selection-end-line="40" selection-end-column="38" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/runner.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="461">
+          <caret line="79" column="1" lean-forward="true" selection-start-line="79" selection-start-column="1" selection-end-line="79" selection-end-column="1" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/main.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="416">
+          <caret line="147" lean-forward="true" selection-start-line="147" selection-end-line="147" />
+          <folding>
+            <element signature="e#14#392#0" expanded="true" />
           </folding>
         </state>
       </provider>
