@@ -14,21 +14,12 @@ import (
 	"github.com/hyperledger/fabric-sdk-go/pkg/util/pathvar"
 )
 
-const (
-	//configPath = "fixtures/config/config_test.yaml"
-	//entityMatcherLocal config file containing entity matchers for local test
-	//entityMatcherLocal = "/fixtures/config/local_entity_matchers.yaml"
-	//ConfigPathSingleOrg single org version of 'configPath' for testing discovery
-	ConfigPathSingleOrg = "${FABRIC_SDK_GO_PROJECT_PATH}/test/fixtures/config/config_e2e_single_org.yaml"
-)
-
-// ConfigBackend contains config backend for integration tests
-//var ConfigBackend = fetchConfigBackend()
-
 // fetchConfigBackend returns a ConfigProvider that retrieves config data from the given configPath,
 // or from the given overrides for local testing
-func fetchConfigBackend() core.ConfigProvider {
-	configProvider := config.FromFile(pathvar.Subst(GetSDKConfigFile()))
+func FetchConfigBackend() core.ConfigProvider {
+
+	path := GetSDKConfigFile()
+	configProvider := config.FromFile(pathvar.Subst(path))
 
 	if IsLocal() {
 		return func() ([]core.ConfigBackend, error) {

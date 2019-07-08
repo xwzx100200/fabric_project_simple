@@ -2,8 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/hyperledger/fabric-sdk-go/pkg/client/ledger"
 	"github.com/spf13/viper"
-
 	//"encoding/json"
 	//"errors"
 	"fmt"
@@ -12,25 +12,31 @@ import (
 	"github.com/hyperledger/fabric-sdk-go/pkg/fabsdk"
 	"net/http"
 
+	//"io/ioutil"
+	//"net/http"
+	//
+	//"github.com/gocraft/web"
 	contextApi "github.com/hyperledger/fabric-sdk-go/pkg/common/providers/context"
-	"github.com/hyperledger/fabric-sdk-go/pkg/client/ledger"
 )
 
+
 const (
-	PROJECT_NAME = "myFabric"
+	PROJECT_NAME = "prj2"
 )
+
 
 var(
 
 	mainSDK *fabsdk.FabricSDK
 	mainSetup *BaseSetupImpl
 	mainChaincodeID string
-	org1ChannelClientContext contextApi.ChannelProvider
+	orgChannelClientContext contextApi.ChannelProvider
 	chClient *channel.Client
 	err error
-	defSetup *BaseSetupImpl
-)
 
+	defSetup *BaseSetupImpl
+
+)
 
 // Status REST response
 type Status struct {
@@ -38,11 +44,17 @@ type Status struct {
 	Message interface{} `json:"message"`
 }
 
+type Car struct {
+	Color      string `json:"Color"`
+	ID         string `json:"ID"`
+	Price      string `json:"Price"`
+}
+
+
 // Blockchain ...
 type Blockchain struct {
 	BSI *BaseSetupImpl
 }
-
 
 // setResponseType is a middleware function that sets the appropriate response
 // headers. Currently, it is setting the "Content-Type" to "application/json" as
@@ -71,6 +83,37 @@ func (b *Blockchain) notFound(rw web.ResponseWriter, req *web.Request){
 
 }
 
+func (b *Blockchain)addTestData(rw web.ResponseWriter, req *web.Request)  {
+	//初始化一些测试数据
+	encoder := json.NewEncoder(rw)
+	var resultArr []map[string]interface{} = []map[string]interface{}{}
+	testArr := createData()
+	for i:=0;i<len(testArr) ;i++  {
+		mycar := testArr[i]
+		carKey := mycar.ID
+		b,_  := json.Marshal(mycar)
+		txid := SetKeyData(defSetup.orgChannelClientContext, defSetup.ChainCodeID, carKey,string(b),)
+		//加入color~id的索引
+		defSetup.addIndexes("color~id",mycar.Color,mycar.ID)
+		fmt.Printf("key is %s,txid is %s \n",carKey,txid)
+		if txid == ""{
+			rw.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		var txDic map[string]interface{} = map[string]interface{}{carKey:testArr[i],"txId":string(txid)}
+		resultArr = append(resultArr,txDic)
+	}
+
+
+
+	rw.WriteHeader(http.StatusOK)
+	err = encoder.Encode(Status{Code: http.StatusOK, Message: resultArr})
+	if err != nil{
+		logger.Errorf("invoke return failed: %s", err)
+	}
+}
+
 
 func buildRouter() *web.Router {
 
@@ -78,38 +121,64 @@ func buildRouter() *web.Router {
 	router.Middleware((*Blockchain).setResponseTypeBSI)
 	router.NotFound((*Blockchain).notFound)
 
-	// 表示所有的请求的前缀都有/chain
+	//加载test数据
+	router.Get("/addTestData",(*Blockchain).addTestData)
+
+
 	chainRouter := router.Subrouter(Chain{}, "/chain")
 
-	//获取具体链的信息http://localhost:5984/chain
 	chainRouter.Get("", (*Chain).chain)
 
-	//获取具体某个区块的信息http://localhost:5984/chain/blocks/5
 	chainRouter.Get("/blocks/:num", (*Chain).block)
 
-	/*
 	chainRouter.Get("/transactions/:txid", (*Chain).tx)
+
+	//另一种方式获取到交易信息,和上一条一样的功能
+	chainRouter.Get("/transactionsmy/:txid",(*Chain).txmy)
+
+	//获取从startKey到endKey中间的数据，[startKey,endKey)  包含开始键、不包括结束键的半闭半开区间
+	chainRouter.Get("/rangeQuery/:startKey/:endKey",(*Chain).rangeQuery)
+
+	//查询某种颜色的汽车
+	chainRouter.Get("/queryWithColor/:color",(*Chain).queryWithColor)
+
+	//couchDB查询语句查询某种颜色的汽车
+	chainRouter.Get("/querySqlWithColor/:color",(*Chain).querySqlWithColor)
+
 	chainRouter.Post("/invoke", (*Chain).invoke)
+
 	chainRouter.Post("/query", (*Chain).query)
+
 	chainRouter.Get("/queryWithBlock/:key", (*Chain).queryWithBlock)
-	*/
 
 	return router
+}
+
+func createData() []Car {
+	// 创建初始化模拟数据
+
+	var car1 Car = Car{Color:"red",ID:"123456",Price:"100.00"}
+	var car2 Car = Car{Color:"blue",ID:"234567",Price:"200.00"}
+	var car3 Car = Car{Color:"green",ID:"345678",Price:"300.00"}
+	var car4 Car = Car{Color:"red",ID:"456789",Price:"400.00"}
+
+	var test []Car = []Car{car1,car2,car3,car4}
+	return test
+
 }
 
 func main(){
 
 	fmt.Println("come to main")
 
-	//init core.yml  加载配置文件
+
+	//init core.yml
 	if err = InitConfig(); err != nil {
 		// Handle errors reading the config file
 		panic(fmt.Errorf("fatal error when initializing config : %s", err))
 	}
 
-
 	/*
-	//init
 	r := NewWithCC()
 	r.Initialize()
 	mainSDK = r.GetSDK()
@@ -120,29 +189,28 @@ func main(){
 
 
 	//set logic key
-	aKey := "keyA"
+	aKey := "AkeyA"
 	//bKey := "keyB"
 
 	//prepare context
-	org1ChannelClientContext = mainSDK.ChannelContext(mainSetup.ChannelID, fabsdk.WithUser(r.Org1User), fabsdk.WithOrg(r.Org1Name))
+	orgChannelClientContext = mainSDK.ChannelContext(mainSetup.ChannelID, fabsdk.WithUser(r.Org1User), fabsdk.WithOrg(r.Org1Name))
 
 	//get channel client
-	chClient, err = channel.New(org1ChannelClientContext)
+	chClient, err = channel.New(orgChannelClientContext)
 	if err != nil {panic(err)}
 
 	//ledgerClient, err := ledger.New(org1ChannelClientContext)
 	if err != nil {panic(err)}
 
 	//1.set single
-	txid := SetKeyData(org1ChannelClientContext, mainChaincodeID, "250",aKey)
+	txid := SetKeyData(orgChannelClientContext, mainChaincodeID, aKey,"250",)
 	fmt.Printf("key is %s,txid is %s \n",aKey,txid)
 
 	//2.get data from key
-	val := GetValueFromKey(chClient,mainChaincodeID,aKey)
+	val := GetValueFromKey(chClient,mainChaincodeID,"query",aKey)
 	fmt.Printf("val is %s \n",val)
 
 	*/
-
 
 
 
@@ -169,15 +237,9 @@ func main(){
 		logger.Errorf("ledger.New: %s", err)
 	}
 
-	//defSetup.ledgerClient = ledgerClient
 
-
-
-	// RESTful 接口服务  使用了gocraft/web包实现的，地址是https://github.com/gocraft/web，若本地没有这个包，要先下载。
-	// 后期打算用beego来替代这个服务
 	//router
 	router := buildRouter()
-	// 接口服务的地址是写在配置文件中的。
 	restAddress := viper.GetString("spi.rest.address")
 
 	fmt.Printf("listen at the address : %s \n",restAddress)
@@ -185,7 +247,21 @@ func main(){
 	if err != nil {
 		logger.Errorf("ListenAndServe: %s", err)
 	}
-
-
 }
 
+
+/**
+
+	1.完成多key的联合查询
+       GetStateByRange(startKey, endKey)  开始位置，结束位置，获取出中间部分的数据
+
+	2.支持模糊查询功能
+		 a、CreateCompositeKey 给定一组属性，将这些属性组合起来构造一个复合键
+         b、SplitCompositeKey 给定一个复合键，将其拆分为复合键所用的属性
+		 c、GetStateByPartialCompositeKey 根据局部的复合键返回所有的匹配的键值
+
+	3.支持group查询功能
+
+	4.增加缓存功能，提高查询的效率
+
+*/

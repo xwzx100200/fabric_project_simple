@@ -11,4 +11,4 @@ export GO_TESTFLAGS=" -failfast"
 
 
 cd ../fixtures/dockerenv
-docker-compose -f docker-compose-std.yaml -f docker-compose.yaml up --remove-orphans --force-recreate --abort-on-container-exit
+docker-compose -f docker-compose-couchdb-config.yaml -f docker-compose-std.yaml -f docker-compose.yaml up --remove-orphans --force-recreate --abort-on-container-exit

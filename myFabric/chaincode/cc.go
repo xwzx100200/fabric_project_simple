@@ -22,31 +22,38 @@ SPDX-License-Identifier: Apache-2.0
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	pb "github.com/hyperledger/fabric/protos/peer"
+
+	"github.com/hyperledger/fabric/protos/ledger/queryresult"
 )
 
-var logger = shim.NewLogger("examplecc")
+var logger = shim.NewLogger("cc")
 
-// SimpleChaincode example simple Chaincode implementation
-type SimpleChaincode struct {
+// AgriChaincode example simple Chaincode implementation
+type AgriChaincode struct {
 }
 
 // Init ...
-func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
+func (t *AgriChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 	txID := stub.GetTxID()
-	logger.Debugf("[txID %s] ########### example_cc Init ###########\n", txID)
-	_, args := stub.GetFunctionAndParameters()
+	fmt.Println("fmt.Println_prj2_Init start")
+	logger.Debugf("[txID %s] ########### prj2_Init ###########\n", txID)
+	funcs, args := stub.GetFunctionAndParameters()
 
-	err := t.reset(stub, txID, args)
+	logger.Debugf("************start Init funcs = [%s] args =[%#v]# ************\n",funcs,args)
+
+	/*err := t.reset(stub, txID, args)
 	if err != nil {
 		return shim.Error(err.Error())
-	}
+	}*/
 
 	if transientMap, err := stub.GetTransient(); err == nil {
 		if transientData, ok := transientMap["result"]; ok {
@@ -58,7 +65,7 @@ func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 
 }
 
-func (t *SimpleChaincode) resetCC(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+func (t *AgriChaincode) resetCC(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	// Deletes an entity from its state
 	if err := t.reset(stub, stub.GetTxID(), args); err != nil {
 		return shim.Error(err.Error())
@@ -66,10 +73,13 @@ func (t *SimpleChaincode) resetCC(stub shim.ChaincodeStubInterface, args []strin
 	return shim.Success(nil)
 }
 
-func (t *SimpleChaincode) reset(stub shim.ChaincodeStubInterface, txID string, args []string) error {
+func (t *AgriChaincode) reset(stub shim.ChaincodeStubInterface, txID string, args []string) error {
 	var A, B string    // Entities
 	var Aval, Bval int // Asset holdings
 	var err error
+
+
+	logger.Debugf("************ prj2_reset txID = [%s] args =[%#v] ************\n",txID,args)
 
 	if len(args) != 4 {
 		return errors.New("Incorrect number of arguments. Expecting 4")
@@ -103,12 +113,14 @@ func (t *SimpleChaincode) reset(stub shim.ChaincodeStubInterface, txID string, a
 }
 
 // Query ...
-func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface) pb.Response {
+func (t *AgriChaincode) Query(stub shim.ChaincodeStubInterface) pb.Response {
 	return shim.Error("Unknown supported call")
 }
 
 //set sets given key-value in state
-func (t *SimpleChaincode) set(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+func (t *AgriChaincode) set(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+
+	logger.Debugf("************ prj2_set  args =[%#v] ************\n",args)
 	var err error
 
 	if len(args) < 3 {
@@ -143,9 +155,12 @@ func (t *SimpleChaincode) set(stub shim.ChaincodeStubInterface, args []string) p
 
 // Invoke ...
 // Transaction makes payment of X units from A to B
-func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
-	logger.Debugf("[txID %s] ########### example_cc Invoke ###########\n", stub.GetTxID())
+func (t *AgriChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
+
 	function, args := stub.GetFunctionAndParameters()
+
+	logger.Debugf("************ prj2_Invoke fun = [%s] args =[%#v] ************\n",function,args)
+
 
 	if function == "invokecc" {
 		return t.invokeCC(stub, args)
@@ -188,10 +203,41 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 		}
 		return t.move(stub, args)
 	}
+
+	if args[0] == "history" {
+		//case "history":
+		return t.history(stub, args)
+	}
+
+	if args[0] == "rangeQuery" {
+		fmt.Println("###############rangeQuery start##################")
+		return t.rangeQuery(stub, args)
+	}
+
+	if args[0] == "richQueryColor"{
+		fmt.Println("###############richQueryColor start##################")
+		return t.richQueryColor(stub, args)
+	}
+
+	if args[0] == "addIndexes" {
+		fmt.Println("###############addIndexes start##################")
+		return t.addIndexes(stub, args)
+	}
+
+	if args[0] == "querySql" {
+		fmt.Println("###############querySql##################")
+		return t.getQueryResultForQueryStrings(stub, args)
+	}
+
+
 	return shim.Error("Unknown action, check the first argument, must be one of 'delete', 'query', or 'move'")
 }
 
-func (t *SimpleChaincode) move(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+func (t *AgriChaincode) move(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+
+
+	logger.Debugf("************ prj2_move stub =[%#v] args =[%#v] ************\n",stub,args)
+
 	txID := stub.GetTxID()
 	// must be an invoke
 	var A, B string    // Entities
@@ -255,7 +301,7 @@ func (t *SimpleChaincode) move(stub shim.ChaincodeStubInterface, args []string) 
 }
 
 // Deletes an entity from state
-func (t *SimpleChaincode) delete(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+func (t *AgriChaincode) delete(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	if len(args) != 1 {
 		return shim.Error("Incorrect number of arguments. Expecting 1")
 	}
@@ -272,9 +318,11 @@ func (t *SimpleChaincode) delete(stub shim.ChaincodeStubInterface, args []string
 }
 
 // Query callback representing the query of a chaincode
-func (t *SimpleChaincode) query(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+func (t *AgriChaincode) query(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	var A string // Entities
 	var err error
+
+	logger.Debugf("************ prj2_query stub =[%#v] args =[%#v] ************\n",stub,args)
 
 	if len(args) != 2 {
 		return shim.Error("Incorrect number of arguments. Expecting name of the person to query")
@@ -314,7 +362,7 @@ func asBytes(args []string) [][]byte {
 // invokeCC invokes another chaincode
 // arg0: ID of chaincode to invoke
 // arg1: Chaincode arguments in the form: {"Args": ["arg0", "arg1",...]}
-func (t *SimpleChaincode) invokeCC(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+func (t *AgriChaincode) invokeCC(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	if len(args) < 2 {
 		return shim.Error("Incorrect number of arguments. Expecting ID of chaincode to invoke and args")
 	}
@@ -334,8 +382,229 @@ func (t *SimpleChaincode) invokeCC(stub shim.ChaincodeStubInterface, args []stri
 	return stub.InvokeChaincode(ccID, asBytes(argStruct.Args), "")
 }
 
+
+// history callback representing the query of a chaincode
+func (t *AgriChaincode) history(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+
+	var key string
+	var err error
+
+	logger.Debugf("************ prj2_history args =[%#v] ************\n",args)
+
+	if len(args) != 2 {
+		return shim.Error("Incorrect number of arguments. Expecting =1")
+	}
+
+	key = args[1]
+
+	type History struct {
+		*queryresult.KeyModification `json:"history"`
+	}
+	result := struct {
+		Current struct {
+			Key   string `json:"key"`
+			Value string `json:"value"`
+		} `json:"current"`
+		Historys []History `json:"historys"`
+	}{}
+
+	// Get the state from the ledger
+	value, err := stub.GetState(key)
+	if err != nil {
+		jsonResp := "{\"Error\":\"Failed to get state for " + key + "\"}"
+		return shim.Error(jsonResp)
+	}
+
+	if value == nil {
+		jsonResp := "{\"Error\":\"Nil amount for " + key + "\"}"
+		return shim.Error(jsonResp)
+	}
+
+
+	result.Current.Key = key
+	result.Current.Value = string(value)
+
+	historyIterator, err := stub.GetHistoryForKey(key)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	defer historyIterator.Close()
+
+	i := 0
+	for historyIterator.HasNext() {
+		history, err := historyIterator.Next()
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+
+		i++
+		result.Historys = append(result.Historys, History{history})
+	}
+
+	jsonResp, err := json.Marshal(result)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	fmt.Printf("Query Response:%s\n", jsonResp)
+	return shim.Success(jsonResp)
+}
+
+func (t *AgriChaincode) rangeQuery(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+
+
+	logger.Debugf("[txID %s] ########### prj2_cc rangeQuery ###########\n", stub.GetTxID())
+
+	startKey := args[1]
+	endKey := args[2]
+	logger.Debugf("startKey:%s,endKey:%s",startKey,endKey)
+
+	resultsIterator, err := stub.GetStateByRange(startKey, endKey)
+
+	if err != nil {
+		return shim.Error("Query by Range failed")
+	}
+	defer resultsIterator.Close() //释放迭代器
+
+	var buffer bytes.Buffer
+	bArrayMemberAlreadyWritten := false
+	buffer.WriteString(`{"result":[`)
+
+	for resultsIterator.HasNext() {
+		queryResponse, err := resultsIterator.Next() //获取迭代器中的每一个值
+		if err != nil {
+			return shim.Error("Fail")
+		}
+		if bArrayMemberAlreadyWritten == true {
+			buffer.WriteString(",")
+		}
+		buffer.WriteString(string(queryResponse.Value)) //将查询结果放入Buffer中
+		bArrayMemberAlreadyWritten = true
+	}
+	buffer.WriteString(`]}`)
+	logger.Debugf("Query result: %s", buffer.String())
+
+	return shim.Success(buffer.Bytes())
+}
+
+func (t *AgriChaincode) addIndexes(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+
+	indexName := args[1]
+	attribute1 := args[2]
+	attribute2 := args[3]
+
+	logger.Debugf("stub.CreateCompositeKey result : %s,%s",attribute1,attribute2)
+
+	colorNameIndexKey, err := stub.CreateCompositeKey(indexName, []string{attribute1, attribute2}) //创建Color与ID的组合键
+
+	logger.Debugf("stub.CreateCompositeKey result : %s",colorNameIndexKey) //color~idred123456
+
+	if err != nil {
+		return shim.Error("Fail to create Composite key")
+	}
+
+	value := []byte{0x00}
+	err = stub.PutState(colorNameIndexKey, value)  // 将索引信息保保存在Key中
+	if err != nil {
+		return shim.Error("PutState failed")
+	}
+	return shim.Success(nil)
+}
+
+
+func (t *AgriChaincode) richQueryColor(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+
+	color := args[1]
+	indexName := args[2]
+
+	colorIdResultsIterator, err := stub.GetStateByPartialCompositeKey (indexName, []string{color}) //返回包含给出颜色的组合键的迭代器
+
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	defer colorIdResultsIterator.Close()
+
+	var dataArr []string = []string{}
+
+	logger.Debugf("colorIdResultsIterator.HasNext() result : %v",colorIdResultsIterator.HasNext())
+
+	if !(colorIdResultsIterator.HasNext()) {
+		return shim.Success([]byte("没有查到数据"))
+	}
+
+	for colorIdResultsIterator.HasNext() {
+		colorIdKey, err := colorIdResultsIterator.Next()
+
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+		objectType, compisiteKeys, err := stub.SplitCompositeKey(string(colorIdKey.Key)) //通过SplitCompositeKey 解析出Car的主键 ID
+
+		returnColor := compisiteKeys[0]
+		returnId := compisiteKeys[1]
+
+		logger.Debugf("indexName:%s",objectType)
+		logger.Debugf("returnColor:%s",returnColor)
+		logger.Debugf("returnId:%s",returnId)
+
+		carBytes, err := stub.GetState(returnId)  // 根据解析出的ID获取数据
+		dataArr = append(dataArr,string(carBytes))
+	}
+
+	joinStr :=strings.Join(dataArr,"_")
+
+
+	logger.Debugf("搜索结果的数组dataArr的长度：%v",len(dataArr))
+
+	return shim.Success([]byte(joinStr))
+}
+
+
+func (t *AgriChaincode) getQueryResultForQueryStrings(stub shim.ChaincodeStubInterface, args []string)pb.Response {
+
+	// 统一的方法用于couchDB的查询，返回查询到的数据，queryString为查询语句
+	queryString := args[1]
+	logger.Debugf("- getQueryResultForQueryStrings queryString:\n%s\n", queryString)
+	resultsIterator, err := stub.GetQueryResult(queryString)
+	logger.Debugf("------执行了查询语句了")
+	defer resultsIterator.Close()
+	if err != nil {
+		logger.Debugf("------执行查询语句出错：",err.Error())
+		shim.Error(err.Error())
+	}
+	// buffer is a JSON array containing QueryRecords
+	var buffer bytes.Buffer
+	buffer.WriteString(`{"result":[`)
+	bArrayMemberAlreadyWritten := false
+	for resultsIterator.HasNext() {
+		queryResponse, err := resultsIterator.Next()
+		if err != nil {
+			shim.Error(err.Error())
+		}
+		// Add a comma before array members, suppress it for the first array member
+		if bArrayMemberAlreadyWritten == true {
+			buffer.WriteString(",")
+		}
+		buffer.WriteString("{\"Key\":")
+		buffer.WriteString("\"")
+		buffer.WriteString(queryResponse.Key)
+		buffer.WriteString("\"")
+		buffer.WriteString(", \"Record\":")
+		// Record is a JSON object, so we write as-is
+		buffer.WriteString(string(queryResponse.Value))
+		buffer.WriteString("}")
+		bArrayMemberAlreadyWritten = true
+	}
+	buffer.WriteString(`]}`)
+	fmt.Printf("- getQueryResultForQueryStrings queryResult:\n%s\n", buffer.String())
+	return shim.Success(buffer.Bytes())
+}
+
+
 func main() {
-	err := shim.Start(new(SimpleChaincode))
+	fmt.Println("prj2_main start")
+	logger.Info("prj2_main start")
+	err := shim.Start(new(AgriChaincode))
 	if err != nil {
 		logger.Errorf("Error starting Simple chaincode: %s", err)
 	}

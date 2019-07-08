@@ -1,5 +1,6 @@
 /*
 Copyright SecureKey Technologies Inc. All Rights Reserved.
+
 SPDX-License-Identifier: Apache-2.0
 */
 
@@ -17,7 +18,6 @@ import (
 	packager "github.com/hyperledger/fabric-sdk-go/pkg/fab/ccpackager/gopackager"
 	"github.com/hyperledger/fabric-sdk-go/pkg/fab/comm"
 	"github.com/hyperledger/fabric-sdk-go/pkg/fabsdk"
-
 	cb "github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/protos/common"
 	"github.com/pkg/errors"
 )
@@ -27,6 +27,7 @@ var orgExpectedPeers = map[string]int{
 	"Org2": 2,
 }
 
+
 // GenerateExampleID supplies a chaincode name for example_cc
 func GenerateExampleID(randomize bool) string {
 	suffix := "0"
@@ -34,13 +35,13 @@ func GenerateExampleID(randomize bool) string {
 		suffix = GenerateRandomID()
 	}
 
-	return fmt.Sprintf("%s_0%s", GetChainCodeName(), suffix)
+	return fmt.Sprintf("%s_0%s", GetChainCodeName(),  suffix)
 }
 
 // PrepareExampleCC install and instantiate using resource management client
 func PrepareExampleCC(sdk *fabsdk.FabricSDK, user fabsdk.ContextOption, orgName string, chaincodeID string) error {
 
-	var channelID = GetSDKChannelID()
+	var	channelID = GetSDKChannelID()
 
 	instantiated, err := queryInstantiatedCCWithSDK(sdk, user, orgName, channelID, chaincodeID, GetChainCodeVersion(), false)
 	if err != nil {
@@ -48,9 +49,9 @@ func PrepareExampleCC(sdk *fabsdk.FabricSDK, user fabsdk.ContextOption, orgName 
 	}
 
 	if instantiated {
-		resetErr := resetExampleCC(sdk, user, orgName, channelID, chaincodeID, resetArgs)
-		if resetErr != nil {
-			return errors.WithMessage(resetErr, "Resetting example chaincode failed")
+		err := resetExampleCC(sdk, user, orgName, channelID, chaincodeID, resetArgs)
+		if err != nil {
+			return errors.WithMessage(err, "Resetting example chaincode failed")
 		}
 		return nil
 	}
@@ -100,17 +101,11 @@ func InstallExampleChaincode(orgs []*OrgContext, ccID string) error {
 	return nil
 }
 
-
-
 // InstantiateExampleChaincode instantiates the example CC on the given channel
 func InstantiateExampleChaincode(orgs []*OrgContext, channelID, ccID, ccPolicy string, collConfigs ...*cb.CollectionConfig) error {
 	_, err := InstantiateChaincode(orgs[0].ResMgmt, channelID, ccID, GetChainCodePath(), GetChainCodeVersion(), ccPolicy, CCInitArgs(), collConfigs...)
 	return err
 }
-
-
-// UpgradeExamplePvtChaincode upgrades the instantiated example pvt CC on the given channel
-
 
 func resetExampleCC(sdk *fabsdk.FabricSDK, user fabsdk.ContextOption, orgName string, channelID string, chainCodeID string, args [][]byte) error {
 	clientContext := sdk.ChannelContext(channelID, user, fabsdk.WithOrg(orgName))

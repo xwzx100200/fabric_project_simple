@@ -28,4 +28,4 @@ if [ ! -z "$IMAGES" ]; then
     $DOCKER_CMD rmi $DOCKER_REMOVE_ARGS $IMAGES
 fi
 
-./mys.sh
+#./mys.sh

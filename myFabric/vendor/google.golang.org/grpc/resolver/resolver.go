@@ -29,12 +29,8 @@ var (
 
 // TODO(bar) install dns resolver in init(){}.
 
-// Register registers the resolver builder to the resolver map. b.Scheme will be
-// used as the scheme registered with this builder.
-//
-// NOTE: this function must only be called during initialization time (i.e. in
-// an init() function), and is not thread-safe. If multiple Resolvers are
-// registered with the same name, the one registered last will take effect.
+// Register registers the resolver builder to the resolver map.
+// b.Scheme will be used as the scheme registered with this builder.
 func Register(b Builder) {
 	m[b.Scheme()] = b
 }
@@ -49,12 +45,8 @@ func Get(scheme string) Builder {
 	return nil
 }
 
-// SetDefaultScheme sets the default scheme that will be used. The default
-// default scheme is "passthrough".
-//
-// NOTE: this function must only be called during initialization time (i.e. in
-// an init() function), and is not thread-safe. The scheme set last overrides
-// previously set values.
+// SetDefaultScheme sets the default scheme that will be used.
+// The default default scheme is "passthrough".
 func SetDefaultScheme(scheme string) {
 	defaultScheme = scheme
 }
@@ -94,8 +86,6 @@ type Address struct {
 // BuildOption includes additional information for the builder to create
 // the resolver.
 type BuildOption struct {
-	// DisableServiceConfig indicates whether resolver should fetch service config data.
-	DisableServiceConfig bool
 }
 
 // ClientConn contains the callbacks for resolver to notify any updates

@@ -23,7 +23,7 @@ import (
 
 // Call represents an expected call to a mock.
 type Call struct {
-	t TestHelper // for triggering test failures on invalid call setup
+	t TestReporter // for triggering test failures on invalid call setup
 
 	receiver   interface{}  // the receiver of the method call
 	method     string       // the name of the method
@@ -46,8 +46,10 @@ type Call struct {
 
 // newCall creates a *Call. It requires the method type in order to support
 // unexported methods.
-func newCall(t TestHelper, receiver interface{}, method string, methodType reflect.Type, args ...interface{}) *Call {
-	t.Helper()
+func newCall(t TestReporter, receiver interface{}, method string, methodType reflect.Type, args ...interface{}) *Call {
+	if h, ok := t.(testHelper); ok {
+		h.Helper()
+	}
 
 	// TODO: check arity, types.
 	margs := make([]Matcher, len(args))
@@ -157,7 +159,9 @@ func (c *Call) Do(f interface{}) *Call {
 
 // Return declares the values to be returned by the mocked function call.
 func (c *Call) Return(rets ...interface{}) *Call {
-	c.t.Helper()
+	if h, ok := c.t.(testHelper); ok {
+		h.Helper()
+	}
 
 	mt := c.methodType
 	if len(rets) != mt.NumOut() {
@@ -205,7 +209,9 @@ func (c *Call) Times(n int) *Call {
 // indirected through a pointer. Or, in the case of a slice, SetArg
 // will copy value's elements into the nth argument.
 func (c *Call) SetArg(n int, value interface{}) *Call {
-	c.t.Helper()
+	if h, ok := c.t.(testHelper); ok {
+		h.Helper()
+	}
 
 	mt := c.methodType
 	// TODO: This will break on variadic methods.
@@ -258,7 +264,9 @@ func (c *Call) isPreReq(other *Call) bool {
 
 // After declares that the call may only match after preReq has been exhausted.
 func (c *Call) After(preReq *Call) *Call {
-	c.t.Helper()
+	if h, ok := c.t.(testHelper); ok {
+		h.Helper()
+	}
 
 	if c == preReq {
 		c.t.Fatalf("A call isn't allowed to be its own prerequisite")
@@ -331,14 +339,14 @@ func (c *Call) matches(args []interface{}) error {
 			// The last arg has a possibility of a variadic argument, so let it branch
 
 			// sample: Foo(a int, b int, c ...int)
-			if i < len(c.args) && i < len(args) {
+			if len(c.args) == len(args) {
 				if m.Matches(args[i]) {
 					// Got Foo(a, b, c) want Foo(matcherA, matcherB, gomock.Any())
 					// Got Foo(a, b, c) want Foo(matcherA, matcherB, someSliceMatcher)
 					// Got Foo(a, b, c) want Foo(matcherA, matcherB, matcherC)
 					// Got Foo(a, b) want Foo(matcherA, matcherB)
 					// Got Foo(a, b, c, d) want Foo(matcherA, matcherB, matcherC, matcherD)
-					continue
+					break
 				}
 			}
 

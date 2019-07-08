@@ -10,15 +10,14 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hyperledger/fabric-sdk-go/test/metadata"
 	"github.com/stretchr/testify/assert"
 )
-
-const CryptoConfigPath  = "fixtures/fabric/v1/crypto-config"
 
 func TestSubstCryptoConfigMiddle(t *testing.T) {
 	o := "$foo${CRYPTOCONFIG_FIXTURES_PATH}foo"
 	s := Subst(o)
-	e := "$foo" + CryptoConfigPath + "foo"
+	e := "$foo" + metadata.CryptoConfigPath + "foo"
 
 	assert.Equal(t, e, s, "Unexpected path substitution")
 }
@@ -26,14 +25,14 @@ func TestSubstCryptoConfigMiddle(t *testing.T) {
 func TestSubstCryptoConfigPrefix(t *testing.T) {
 	o := "$foo${CRYPTOCONFIG_FIXTURES_PATH}"
 	s := Subst(o)
-	e := "$foo" + CryptoConfigPath
+	e := "$foo" + metadata.CryptoConfigPath
 
 	assert.Equal(t, e, s, "Unexpected path substitution")
 }
 func TestSubstCryptoConfigWithPostfix(t *testing.T) {
 	o := "${CRYPTOCONFIG_FIXTURES_PATH}foo"
 	s := Subst(o)
-	e := CryptoConfigPath + "foo"
+	e := metadata.CryptoConfigPath + "foo"
 
 	assert.Equal(t, e, s, "Unexpected path substitution")
 }
@@ -41,7 +40,7 @@ func TestSubstCryptoConfigWithPostfix(t *testing.T) {
 func TestSubstCryptoConfigOnly(t *testing.T) {
 	o := "${CRYPTOCONFIG_FIXTURES_PATH}"
 	s := Subst(o)
-	e := CryptoConfigPath
+	e := metadata.CryptoConfigPath
 
 	assert.Equal(t, e, s, "Unexpected path substitution")
 }
@@ -101,7 +100,7 @@ func TestSubstGoPath2(t *testing.T) {
 func TestSubstGoPathAndVar(t *testing.T) {
 	o := "$foo${GOPATH}foo${CRYPTOCONFIG_FIXTURES_PATH}"
 	s := Subst(o)
-	e := "$foo" + goPath() + "foo" + CryptoConfigPath
+	e := "$foo" + goPath() + "foo" + metadata.CryptoConfigPath
 
 	assert.Equal(t, e, s, "Unexpected path substitution")
 }
@@ -142,7 +141,7 @@ func TestEnvPriority(t *testing.T) {
 
 	o := "$foo${GOPATH}foo${CRYPTOCONFIG_FIXTURES_PATH}"
 	s := Subst(o)
-	e := "$foo" + goPath() + "foo" + CryptoConfigPath
+	e := "$foo" + goPath() + "foo" + metadata.CryptoConfigPath
 
 	assert.Equal(t, e, s, "Unexpected path substitution (SDK variable should take priority)")
 
@@ -153,7 +152,7 @@ func TestEnvPriority(t *testing.T) {
 func TestSubstMiddleNoVarPrefix(t *testing.T) {
 	o := "foo${CRYPTOCONFIG_FIXTURES_PATH}${GOPATH}foo"
 	s := Subst(o)
-	e := "foo" + CryptoConfigPath + goPath() + "foo"
+	e := "foo" + metadata.CryptoConfigPath + goPath() + "foo"
 
 	assert.Equal(t, e, s, "Unexpected path substitution")
 }

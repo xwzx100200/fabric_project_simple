@@ -8,10 +8,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/hyperledger/fabric-sdk-go/pkg/fabsdk"
 	"os"
 	"testing"
+
+	"github.com/hyperledger/fabric-sdk-go/pkg/fabsdk"
 )
+
 
 // Runner provides common data for running integration tests.
 type Runner struct {
@@ -39,7 +41,7 @@ func New() *Runner {
 		Org1User:      GetSDKUsers()[0],
 		Org2User:      GetSDKUsers()[1],
 		ChannelID:     GetSDKChannelID(),
-		CCPath:        GetChainCodeName(),
+		CCPath:        GetChainCodePath(),
 	}
 
 	return &r
@@ -69,12 +71,12 @@ func (r *Runner) GetSDK() *fabsdk.FabricSDK {
 	return r.sdk
 }
 
-// GetSetup returns the integration test setup.
+// TestSetup returns the integration test setup.
 func (r *Runner) GetSetup() *BaseSetupImpl {
 	return r.testSetup
 }
 
-// GetChaincodeID returns the generated chaincode ID for example CC.
+// ExampleChaincodeID returns the generated chaincode ID for example CC.
 func (r *Runner) GetChaincodeID() string {
 	return r.exampleChaincodeID
 }
@@ -87,7 +89,7 @@ func (r *Runner) Initialize() {
 		ChannelConfigFile: GetChannelConfigPath(r.ChannelID + ".tx"),
 	}
 
-	sdk, err := fabsdk.New(fetchConfigBackend())
+	sdk, err := fabsdk.New(FetchConfigBackend())
 	if err != nil {
 		panic(fmt.Sprintf("Failed to create new SDK: %s", err))
 	}

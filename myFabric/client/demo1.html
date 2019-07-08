@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>demo1</title>
+    <script src="jquery-3.3.1.min.js" type="text/javascript" charset="utf-8"></script>
+</head>
+
+<body>
+
+    <div>
+        姓名:<input type="text" name="name" id="name">
+        年龄:<input type="text" name="age" id="age">
+        <input type="button" value="数据上链" id="bcBtn">
+    </div>
+
+
+    <script type="text/javascript">
+
+        $("#bcBtn").click(function(){
+
+
+            var name = $("#name").val();
+            var age =  $("#age").val();
+
+            console.log(name +" " + age);
+
+            $.ajax({
+                type: "POST",
+                url: "http://0.0.0.0:5984/bc/getValue/",
+                contentType: "application/json;charset=utf-8",
+                data:JSON.stringify({"name":name,"age":age}),
+                dataType: "json",
+                success:function (message) {
+                    console.log("come to result success");
+                    alert("提交成功"+JSON.stringify(message));
+                },
+                error:function (message) {
+                    alert("提交失败"+JSON.stringify(message));
+                }
+            });
+
+            console.log("come to end");
+
+        });
+
+
+    </script>
+
+</body>
+
+
+
+
+
+
+
+</html>

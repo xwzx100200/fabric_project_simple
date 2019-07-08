@@ -7,7 +7,7 @@ spi:
 
     rest:
         # The Address this App will bind to for providing services
-        address: 0.0.0.0:5984
+        address: 0.0.0.0:7984
 
     # Setting for runtime.GOMAXPROCS(n). If n < 1, it does not change the current setting
     goMaxProcs: -1
@@ -25,7 +25,7 @@ spi:
         version: v0
 
     sdk:
-        configPath: fixtures/config/config_test.yaml
+        configPath: fixtures/config/sdk_dev.yaml
         localEntityMatcher: fixtures/config/local_entity_matchers.yaml
         orgs: [Org1,Org2]
         users: [User1,User2]

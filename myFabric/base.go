@@ -9,6 +9,16 @@ package main
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/golang/protobuf/proto"
+	"github.com/spf13/viper"
+	"go/build"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	mspclient "github.com/hyperledger/fabric-sdk-go/pkg/client/msp"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/resmgmt"
@@ -22,27 +32,30 @@ import (
 	"github.com/hyperledger/fabric-sdk-go/pkg/fab/resource"
 	"github.com/hyperledger/fabric-sdk-go/pkg/fabsdk"
 	"github.com/hyperledger/fabric-sdk-go/pkg/util/test"
+
 	"github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/common/cauthdsl"
 	cb "github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/protos/common"
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
-	"go/build"
-	"os"
-	"path"
-	"path/filepath"
-	"strings"
-	"testing"
-	"time"
+
+	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
+
 	"github.com/op/go-logging"
+
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/ledger"
+
 	google_protobuf "github.com/golang/protobuf/ptypes/timestamp"
+
 	"github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/protos/utils"
-	"github.com/golang/protobuf/proto"
+
+	"github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/protos/peer"
+
+	"github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
 )
 
 // BaseSetupImpl implementation of BaseTestSetup
 type BaseSetupImpl struct {
+
 	Identity          msp.Identity
 	Targets           []string
 	ConfigFile        string
@@ -56,24 +69,23 @@ type BaseSetupImpl struct {
 	orgChannelClientContext contextAPI.ChannelProvider
 }
 
-// Initial B values for ExampleCC
+// Initial B values for CC
 const (
-	ExampleCCInitB    = "200"
-	ExampleCCUpgradeB = "400"
+	CCInitB    = "200"
+	CCUpgradeB = "400"
 	keyExp            = "key-%s-%s"
 )
 
-// ExampleCC query and transaction arguments
+// CC query and transaction arguments
 var defaultQueryArgs = [][]byte{[]byte("query"), []byte("b")}
 var defaultTxArgs = [][]byte{[]byte("move"), []byte("a"), []byte("b"), []byte("1")}
 
-// ExampleCC init and upgrade args
-var initArgs = [][]byte{[]byte("init"), []byte("a"), []byte("100"), []byte("b"), []byte(ExampleCCInitB)}
-var upgradeArgs = [][]byte{[]byte("init"), []byte("a"), []byte("100"), []byte("b"), []byte(ExampleCCUpgradeB)}
-var resetArgs = [][]byte{[]byte("a"), []byte("100"), []byte("b"), []byte(ExampleCCInitB)}
+// CC init and upgrade args
+var initArgs = [][]byte{[]byte("init"), []byte("a"), []byte("100"), []byte("b"), []byte(CCInitB)}
+var upgradeArgs = [][]byte{[]byte("init"), []byte("a"), []byte("100"), []byte("b"), []byte(CCUpgradeB)}
+var resetArgs = [][]byte{[]byte("a"), []byte("100"), []byte("b"), []byte(CCInitB)}
 
-var logger  *logging.Logger
-
+var logger   *logging.Logger
 //initConfig initializes viper config
 func InitConfig() error {
 	// viper init
@@ -89,8 +101,10 @@ func InitConfig() error {
 	if err != nil {
 		return fmt.Errorf("fatal error config file: %s ", err)
 	}
+
 	return nil
 }
+
 
 
 // CCDefaultQueryArgs returns  cc query args
@@ -132,6 +146,20 @@ func CCInitArgs() [][]byte {
 func CCUpgradeArgs() [][]byte {
 	return upgradeArgs
 }
+
+// CCQueryArgs returns  cc query args
+func CCFindArgs(fcn string,key string) [][]byte {
+	return [][]byte{[]byte(fcn), []byte(key)}
+}
+
+func CCAddIndexsArgs(fcn string,indexName string,key1 string,key2 string) [][]byte {
+	return [][]byte{[]byte(fcn), []byte(indexName),[]byte(key1),[]byte(key2)}
+}
+
+func CCFindRangeArgs(fcn string,startKey string, endKey string) [][]byte {
+	return [][]byte{[]byte(fcn), []byte(startKey),[]byte(endKey)}
+}
+
 
 // IsJoinedChannel returns true if the given peer has joined the given channel
 func IsJoinedChannel(channelID string, resMgmtClient *resmgmt.Client, peer fabAPI.Peer) (bool, error) {
@@ -197,9 +225,7 @@ func (setup *BaseSetupImpl) Initialize(sdk *fabsdk.FabricSDK) error {
 
 // GetDeployPath returns the path to the chaincode fixtures
 func GetDeployPath() string {
-	//const ccPath = "chaincode"
-	//return path.Join(goPath(), "src", Project)
-	return  goPath()
+	return goPath()
 }
 
 // GetChannelConfigPath returns the path to the named channel config file
@@ -209,7 +235,7 @@ func GetChannelConfigPath(filename string) string {
 
 // GetConfigPath returns the path to the named config fixture file
 func GetConfigPath(filename string) string {
-	const configPath = "fixtures/config"
+	const configPath =  "fixtures/config"
 	return path.Join(goPath(), "src", PROJECT_NAME, configPath, filename)
 }
 
@@ -265,7 +291,7 @@ func CreateChannelAndUpdateAnchorPeers(t *testing.T, sdk *fabsdk.FabricSDK, chan
 		ChannelConfigPath: GetChannelConfigPath(channelConfigFile),
 		SigningIdentities: signingIdentities,
 	}
-	_, err = chMgmtClient.SaveChannel(req, resmgmt.WithRetry(retry.DefaultResMgmtOpts), resmgmt.WithOrdererEndpoint("orderer.example.com"))
+	_, err = chMgmtClient.SaveChannel(req, resmgmt.WithRetry(retry.DefaultResMgmtOpts), resmgmt.WithOrdererEndpoint("orderer..com"))
 	if err != nil {
 		return err
 	}
@@ -278,7 +304,7 @@ func CreateChannelAndUpdateAnchorPeers(t *testing.T, sdk *fabsdk.FabricSDK, chan
 			ChannelConfigPath: GetChannelConfigPath(orgCtx.AnchorPeerConfigFile),
 			SigningIdentities: []msp.SigningIdentity{orgCtx.SigningIdentity},
 		}
-		if _, err := orgCtx.ResMgmt.SaveChannel(req, resmgmt.WithRetry(retry.DefaultResMgmtOpts), resmgmt.WithOrdererEndpoint("orderer.example.com")); err != nil {
+		if _, err := orgCtx.ResMgmt.SaveChannel(req, resmgmt.WithRetry(retry.DefaultResMgmtOpts), resmgmt.WithOrdererEndpoint("orderer..com")); err != nil {
 			return err
 		}
 
@@ -294,7 +320,7 @@ func JoinPeersToChannel(channelID string, orgsContext []*OrgContext) error {
 		err := orgCtx.ResMgmt.JoinChannel(
 			channelID,
 			resmgmt.WithRetry(retry.DefaultResMgmtOpts),
-			resmgmt.WithOrdererEndpoint("orderer.example.com"),
+			resmgmt.WithOrdererEndpoint("orderer..com"),
 			resmgmt.WithTargets(orgCtx.Peers...),
 		)
 		if err != nil {
@@ -357,27 +383,6 @@ func InstantiateChaincode(resMgmt *resmgmt.Client, channelID, ccName, ccPath, cc
 	)
 }
 
-// UpgradeChaincode upgrades the given chaincode on the given channel
-func UpgradeChaincode(resMgmt *resmgmt.Client, channelID, ccName, ccPath, ccVersion string, ccPolicyStr string, args [][]byte, collConfigs ...*cb.CollectionConfig) (resmgmt.UpgradeCCResponse, error) {
-	ccPolicy, err := cauthdsl.FromString(ccPolicyStr)
-	if err != nil {
-		return resmgmt.UpgradeCCResponse{}, errors.Wrapf(err, "error creating CC policy [%s]", ccPolicyStr)
-	}
-
-	return resMgmt.UpgradeCC(
-		channelID,
-		resmgmt.UpgradeCCRequest{
-			Name:       ccName,
-			Path:       ccPath,
-			Version:    ccVersion,
-			Args:       args,
-			Policy:     ccPolicy,
-			CollConfig: collConfigs,
-		},
-		resmgmt.WithRetry(retry.DefaultResMgmtOpts),
-	)
-}
-
 // DiscoverLocalPeers queries the local peers for the given MSP context and returns all of the peers. If
 // the number of peers does not match the expected number then an error is returned.
 func DiscoverLocalPeers(ctxProvider contextAPI.ClientProvider, expectedPeers int) ([]fabAPI.Peer, error) {
@@ -388,9 +393,9 @@ func DiscoverLocalPeers(ctxProvider contextAPI.ClientProvider, expectedPeers int
 
 	discoveredPeers, err := retry.NewInvoker(retry.New(retry.TestRetryOpts)).Invoke(
 		func() (interface{}, error) {
-			peers, serviceErr := ctx.LocalDiscoveryService().GetPeers()
-			if serviceErr != nil {
-				return nil, errors.Wrapf(serviceErr, "error getting peers for MSP [%s]", ctx.Identifier().MSPID)
+			peers, err := ctx.LocalDiscoveryService().GetPeers()
+			if err != nil {
+				return nil, errors.Wrapf(err, "error getting peers for MSP [%s]", ctx.Identifier().MSPID)
 			}
 			if len(peers) < expectedPeers {
 				return nil, status.New(status.TestStatus, status.GenericTransient.ToInt32(), fmt.Sprintf("Expecting %d peers but got %d", expectedPeers, len(peers)), nil)
@@ -431,7 +436,7 @@ func WaitForOrdererConfigUpdate(t *testing.T, client *resmgmt.Client, channelID 
 
 	blockNum, err := retry.NewInvoker(retry.New(retry.TestRetryOpts)).Invoke(
 		func() (interface{}, error) {
-			chConfig, err := client.QueryConfigFromOrderer(channelID, resmgmt.WithOrdererEndpoint("orderer.example.com"))
+			chConfig, err := client.QueryConfigFromOrderer(channelID, resmgmt.WithOrdererEndpoint("orderer..com"))
 			if err != nil {
 				return nil, status.New(status.TestStatus, status.GenericTransient.ToInt32(), err.Error(), nil)
 			}
@@ -500,7 +505,7 @@ func GetKeyName(t *testing.T) string {
 	return fmt.Sprintf(keyExp, t.Name(), GenerateRandomID())
 }
 
-//ResetKeys resets given set of keys in example cc to given value
+//ResetKeys resets given set of keys in  cc to given value
 func ResetKeys(t *testing.T, ctx contextAPI.ChannelProvider, chaincodeID, value string, keys ...string) {
 	chClient, err := channel.New(ctx)
 	require.NoError(t, err, "Failed to create new channel client for resetting keys")
@@ -517,54 +522,190 @@ func ResetKeys(t *testing.T, ctx contextAPI.ChannelProvider, chaincodeID, value 
 	}
 }
 
+//
+////ResetKeys resets given set of keys in  cc to given value
+//func SetKeyData(ctx contextAPI.ChannelProvider, chaincodeID, value string, key string) fabAPI.TransactionID{
+//	chClient, err := channel.New(ctx)
+//	if err != nil {print(err)}
+//
+//	// Synchronous transaction
+//	respone, e := chClient.Execute(
+//		channel.Request{
+//			ChaincodeID: chaincodeID,
+//			Fcn:         "invoke",
+//			Args:        CCTxSetArgs(key, value),
+//		},
+//		channel.WithRetry(retry.DefaultChannelOpts))
+//
+//	if e != nil {print(e)}
+//
+//	return respone.TransactionID
+//}
 
-
-
-
-//###################################################################################################################
+//
+//func GetValueFromKey(chClient *channel.Client,ccID, key string) string{
+//
+//	const (
+//		maxRetries = 10
+//		retrySleep = 500 * time.Millisecond
+//	)
+//
+//	for r := 0; r < maxRetries; r++ {
+//		response, err := chClient.Query(channel.Request{ChaincodeID: ccID, Fcn: "invoke", Args: CCQueryArgs(key)},
+//			channel.WithRetry(retry.DefaultChannelOpts))
+//		if err == nil {
+//			actual := string(response.Payload)
+//			if actual != "" {
+//				return actual
+//			}
+//		}
+//
+//		time.Sleep(retrySleep)
+//	}
+//
+//	return ""
+//}
+//
+//type Transaction struct {
+//	Type        int32                     `protobuf:"bytes,1,opt,name=type" json:"type"`
+//	ChaincodeID string                    `protobuf:"bytes,2,opt,name=chaincodeID" json:"chaincodeID"`
+//	Payload     string                    `protobuf:"bytes,3,opt,name=payload" json:"payload"`
+//	UUID        string                    `protobuf:"bytes,4,opt,name=uuid" json:"uuid"`
+//	Timestamp   google_protobuf.Timestamp `protobuf:"bytes,5,opt,name=timestamp" json:"timestamp"`
+//	Cert        string                    `protobuf:"bytes,6,opt,name=cert" json:"cert"`
+//	Signature   string                    `protobuf:"bytes,7,opt,name=signature" json:"signature"`
+//}
+//
+//func GetValueFromTransactionID(ledgerClient *ledger.Client, ccID string,txID fabAPI.TransactionID)(Transaction, error) {
+//
+//	var transaction Transaction
+//	// Test Query Transaction -- verify that valid transaction has been processed
+//	processedTransaction, err := ledgerClient.QueryTransaction(txID)
+//	//processedTransaction, err := ledgerClient.QueryTransaction(txID, ledger.WithTargetEndpoints(targets...))
+//	if err != nil {
+//		fmt.Printf("QueryTransaction return error: %s", err)
+//	}
+//
+//	if processedTransaction.TransactionEnvelope == nil {
+//		fmt.Printf("QueryTransaction failed to return transaction envelope")
+//	}
+//
+//
+//	payload, err := utils.ExtractPayload(processedTransaction.TransactionEnvelope)
+//	if err != nil {
+//		return transaction, err
+//	}
+//
+//	channelHeader, err := utils.UnmarshalChannelHeader(payload.Header.ChannelHeader)
+//	if err != nil {
+//		return transaction, err
+//	}
+//
+//	switch common.HeaderType(channelHeader.Type) {
+//	case common.HeaderType_MESSAGE:
+//		break
+//	case common.HeaderType_CONFIG:
+//		configEnvelope := &common.ConfigEnvelope{}
+//		if err := proto.Unmarshal(payload.Data, configEnvelope); err != nil {
+//			return transaction, err
+//		}
+//		break
+//	case common.HeaderType_CONFIG_UPDATE:
+//		configUpdateEnvelope := &common.ConfigUpdateEnvelope{}
+//		if err := proto.Unmarshal(payload.Data, configUpdateEnvelope); err != nil {
+//			return transaction, err
+//		}
+//		break
+//	case common.HeaderType_ENDORSER_TRANSACTION:
+//		tx, err := utils.GetTransaction(payload.Data)
+//		if err != nil {
+//			return transaction, err
+//		}
+//
+//		channelHeader := &common.ChannelHeader{}
+//		if err := proto.Unmarshal(payload.Header.ChannelHeader, channelHeader); err != nil {
+//			return transaction, err
+//		}
+//
+//		signatureHeader := &common.SignatureHeader{}
+//		if err := proto.Unmarshal(payload.Header.SignatureHeader, signatureHeader); err != nil {
+//			return transaction, err
+//		}
+//
+//		for _, action := range tx.Actions {
+//			ccActionPayload, ccAction, _ := utils.GetPayloads(action)
+//
+//
+//			ChaincodeProposalPayload, _ := utils.GetChaincodeProposalPayload(ccActionPayload.ChaincodeProposalPayload)
+//
+//			cis := &peer.ChaincodeInvocationSpec{}
+//			err = proto.Unmarshal(ChaincodeProposalPayload.Input, cis)
+//
+//			txRWSet := &rwsetutil.TxRwSet{}
+//			err = txRWSet.FromProtoBytes(ccAction.Results)
+//
+//			transaction.ChaincodeID = ccID
+//			transaction.Payload = base64.StdEncoding.EncodeToString(action.Payload)
+//			transaction.Type = channelHeader.Type
+//			transaction.UUID = channelHeader.TxId
+//			transaction.Cert = base64.StdEncoding.EncodeToString(signatureHeader.Creator)
+//			transaction.Signature = base64.StdEncoding.EncodeToString(processedTransaction.TransactionEnvelope.Signature)
+//			if channelHeader != nil && channelHeader.Timestamp != nil {
+//				transaction.Timestamp.Seconds = channelHeader.Timestamp.Seconds
+//				transaction.Timestamp.Nanos = channelHeader.Timestamp.Nanos
+//			}
+//		}
+//		break
+//	case common.HeaderType_ORDERER_TRANSACTION:
+//		break
+//	case common.HeaderType_DELIVER_SEEK_INFO:
+//		break
+//	default:
+//		return transaction, fmt.Errorf("Unknown message")
+//	}
+//
+//	return transaction, nil
+//
+//
+//}
 
 
 //ResetKeys resets given set of keys in  cc to given value
-func SetKeyData(ctx contextAPI.ChannelProvider, chaincodeID, value string, key string) fabAPI.TransactionID{
+func SetKeysData(ctx contextAPI.ChannelProvider, chaincodeID, value string, keys ...string){
 	chClient, err := channel.New(ctx)
 	if err != nil {print(err)}
 
-	// Synchronous transaction
-	respone, e := chClient.Execute(
-		channel.Request{
-			ChaincodeID: chaincodeID,
-			Fcn:         "invoke",
-			Args:        CCTxSetArgs(key, value),
-		},
-		channel.WithRetry(retry.DefaultChannelOpts))
+	for _, key := range keys {
+		// Synchronous transaction
+		respone, e := chClient.Execute(
+			channel.Request{
+				ChaincodeID: chaincodeID,
+				Fcn:         "invoke",
+				Args:        CCTxSetArgs(key, value),
+			},
+			channel.WithRetry(retry.DefaultChannelOpts))
 
-	if e != nil {print(e)}
+		fmt.Printf("key is %s,txid is %s \n",key,respone.TransactionID)
 
-	return respone.TransactionID
+		if e != nil {panic(e)}
+	}
 }
 
 
-func GetValueFromKey(chClient *channel.Client,ccID, key string) string{
-
-	const (
-		maxRetries = 10
-		retrySleep = 500 * time.Millisecond
+func Transfer(chClient *channel.Client, ccID, nestedCCID string, args [][]byte) fabAPI.TransactionID{
+	response, err := chClient.Execute(
+		channel.Request{
+			ChaincodeID:     ccID,
+			Fcn:             "invoke",
+			Args:            args,
+			InvocationChain: []*fab.ChaincodeCall{{ID: nestedCCID}},
+		},
+		channel.WithRetry(retry.DefaultChannelOpts),
 	)
 
-	for r := 0; r < maxRetries; r++ {
-		response, err := chClient.Query(channel.Request{ChaincodeID: ccID, Fcn: "invoke", Args: CCQueryArgs(key)},
-			channel.WithRetry(retry.DefaultChannelOpts))
-		if err == nil {
-			actual := string(response.Payload)
-			if actual != "" {
-				return actual
-			}
-		}
+	if err != nil {panic(err)}
 
-		time.Sleep(retrySleep)
-	}
-
-	return ""
+	return response.TransactionID
 }
 
 type BlockchainInfo struct {
@@ -612,6 +753,118 @@ func (setup *BaseSetupImpl) GetBlock(num uint64) (Block, error) {
 	block.Transactions = make([]Transaction, 0)
 
 	b, err := setup.ledgerClient.QueryBlock(num)
+	if err != nil {
+		return block, nil
+	}
+
+	/*
+		type Block struct {
+			Header               *BlockHeader   `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
+			Data                 *BlockData     `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+			Metadata             *BlockMetadata `protobuf:"bytes,3,opt,name=metadata,proto3" json:"metadata,omitempty"`
+			XXX_NoUnkeyedLiteral struct{}       `json:"-"`
+			XXX_unrecognized     []byte         `json:"-"`
+			XXX_sizecache        int32          `json:"-"`
+		}
+
+
+		type Block struct {
+			Version           int           `protobuf:"bytes,1,opt,name=version" json:"version"`
+			Timestamp         string        `protobuf:"bytes,2,opt,name=timestamp" json:"timestamp"`
+			Transactions      []Transaction `protobuf:"bytes,3,opt,name=transactions" json:"transactions"`
+			StateHash         string        `protobuf:"bytes,4,opt,name=stateHash" json:"stateHash"`
+			PreviousBlockHash string        `protobuf:"bytes,5,opt,name=previousBlockHash" json:"previousBlockHash"`
+		}
+	*/
+
+	block.StateHash = base64.StdEncoding.EncodeToString(b.Header.DataHash)
+	block.PreviousBlockHash = base64.StdEncoding.EncodeToString(b.Header.PreviousHash)
+
+	for i := 0; i < len(b.Data.Data); i++ {
+		// parse block
+		envelope, err := utils.ExtractEnvelope(b, i)
+
+		if err != nil {
+			return block, err
+		}
+
+		payload, err := utils.ExtractPayload(envelope)
+		if err != nil {
+			return block, err
+		}
+
+		channelHeader, err := utils.UnmarshalChannelHeader(payload.Header.ChannelHeader)
+		if err != nil {
+			return block, err
+		}
+
+		block.Version = int(cb.HeaderType(channelHeader.Type))
+		switch cb.HeaderType(channelHeader.Type) {
+		case cb.HeaderType_MESSAGE:
+			break
+		case cb.HeaderType_CONFIG:
+			configEnvelope := &cb.ConfigEnvelope{}
+			if err := proto.Unmarshal(payload.Data, configEnvelope); err != nil {
+				return block, err
+			}
+			break
+		case cb.HeaderType_CONFIG_UPDATE:
+			configUpdateEnvelope := &cb.ConfigUpdateEnvelope{}
+			if err := proto.Unmarshal(payload.Data, configUpdateEnvelope); err != nil {
+				return block, err
+			}
+			break
+		case cb.HeaderType_ENDORSER_TRANSACTION:
+			tx, err := utils.GetTransaction(payload.Data)
+			if err != nil {
+				return block, err
+			}
+
+			channelHeader := &cb.ChannelHeader{}
+			if err := proto.Unmarshal(payload.Header.ChannelHeader, channelHeader); err != nil {
+				return block, err
+			}
+
+			signatureHeader := &cb.SignatureHeader{}
+			if err := proto.Unmarshal(payload.Header.SignatureHeader, signatureHeader); err != nil {
+				return block, err
+			}
+
+			for _, action := range tx.Actions {
+				var transaction Transaction
+				transaction.ChaincodeID = setup.ChainCodeID
+				transaction.Payload = base64.StdEncoding.EncodeToString(action.Payload)
+
+				transaction.Type = channelHeader.Type
+				transaction.UUID = channelHeader.TxId
+				transaction.Cert = base64.StdEncoding.EncodeToString(signatureHeader.Creator)
+				transaction.Signature = base64.StdEncoding.EncodeToString(envelope.Signature)
+				if channelHeader != nil && channelHeader.Timestamp != nil {
+					transaction.Timestamp.Seconds = channelHeader.Timestamp.Seconds
+					transaction.Timestamp.Nanos = channelHeader.Timestamp.Nanos
+				}
+
+				block.Transactions = append(block.Transactions, transaction)
+			}
+			break
+		case cb.HeaderType_ORDERER_TRANSACTION:
+			break
+		case cb.HeaderType_DELIVER_SEEK_INFO:
+			break
+		default:
+			return block, fmt.Errorf("Unknown message")
+		}
+	}
+	return block, nil
+}
+
+
+// GetBlock ...
+func GetBlockByTxID(txID string,setup *BaseSetupImpl) (Block, error) {
+	var block Block
+	block.Transactions = make([]Transaction, 0)
+
+	b, err := setup.ledgerClient.QueryBlockByTxID(fabAPI.TransactionID(txID))
 	if err != nil {
 		return block, nil
 	}
@@ -695,4 +948,270 @@ func (setup *BaseSetupImpl) GetBlock(num uint64) (Block, error) {
 		}
 	}
 	return block, nil
+}
+
+
+
+func (setup *BaseSetupImpl) GetTransactionmy(txID string)(Transaction, error) {
+
+	var transaction Transaction
+
+	block,err := GetBlockByTxID(txID,setup)
+	if err != nil {
+		panic(err)
+	}
+
+	count := len(block.Transactions)
+	if count == 0 {
+		return transaction, fmt.Errorf("can not find Transaction by txID")
+	}
+
+	for _, tx := range  block.Transactions{
+		if tx.UUID == txID {
+			transaction = tx
+			return transaction, nil
+		}
+	}
+
+	return transaction, fmt.Errorf("can not find Transaction by txID")
+}
+
+
+//func GetTransaction(ledgerClient *ledger.Client, ccID string,txID fabAPI.TransactionID)(Transaction, error) {
+func (setup *BaseSetupImpl)GetTransaction(txID string)(Transaction, error) {
+
+	var transaction Transaction
+	// Test Query Transaction -- verify that valid transaction has been processed
+	processedTransaction, err := setup.ledgerClient.QueryTransaction(fabAPI.TransactionID(txID))
+	//processedTransaction, err := ledgerClient.QueryTransaction(txID, ledger.WithTargetEndpoints(targets...))
+	if err != nil {
+		fmt.Printf("QueryTransaction return error: %s", err)
+	}
+
+	if processedTransaction.TransactionEnvelope == nil {
+		fmt.Printf("QueryTransaction failed to return transaction envelope")
+	}
+
+
+	payload, err := utils.ExtractPayload(processedTransaction.TransactionEnvelope)
+	if err != nil {
+		return transaction, err
+	}
+
+	channelHeader, err := utils.UnmarshalChannelHeader(payload.Header.ChannelHeader)
+	if err != nil {
+		return transaction, err
+	}
+
+	switch cb.HeaderType(channelHeader.Type) {
+	case cb.HeaderType_MESSAGE:
+		break
+	case cb.HeaderType_CONFIG:
+		configEnvelope := &cb.ConfigEnvelope{}
+		if err := proto.Unmarshal(payload.Data, configEnvelope); err != nil {
+			return transaction, err
+		}
+		break
+	case cb.HeaderType_CONFIG_UPDATE:
+		configUpdateEnvelope := &cb.ConfigUpdateEnvelope{}
+		if err := proto.Unmarshal(payload.Data, configUpdateEnvelope); err != nil {
+			return transaction, err
+		}
+		break
+	case cb.HeaderType_ENDORSER_TRANSACTION:
+		tx, err := utils.GetTransaction(payload.Data)
+		if err != nil {
+			return transaction, err
+		}
+
+		channelHeader := &cb.ChannelHeader{}
+		if err := proto.Unmarshal(payload.Header.ChannelHeader, channelHeader); err != nil {
+			return transaction, err
+		}
+
+		signatureHeader := &cb.SignatureHeader{}
+		if err := proto.Unmarshal(payload.Header.SignatureHeader, signatureHeader); err != nil {
+			return transaction, err
+		}
+
+		for _, action := range tx.Actions {
+			ccActionPayload, ccAction, _ := utils.GetPayloads(action)
+
+
+			ChaincodeProposalPayload, _ := utils.GetChaincodeProposalPayload(ccActionPayload.ChaincodeProposalPayload)
+
+			cis := &peer.ChaincodeInvocationSpec{}
+			err = proto.Unmarshal(ChaincodeProposalPayload.Input, cis)
+
+			txRWSet := &rwsetutil.TxRwSet{}
+			err = txRWSet.FromProtoBytes(ccAction.Results)
+
+			transaction.ChaincodeID = setup.ChannelID
+			transaction.Payload = base64.StdEncoding.EncodeToString(action.Payload)
+			transaction.Type = channelHeader.Type
+			transaction.UUID = channelHeader.TxId
+			transaction.Cert = base64.StdEncoding.EncodeToString(signatureHeader.Creator)
+			transaction.Signature = base64.StdEncoding.EncodeToString(processedTransaction.TransactionEnvelope.Signature)
+			if channelHeader != nil && channelHeader.Timestamp != nil {
+				transaction.Timestamp.Seconds = channelHeader.Timestamp.Seconds
+				transaction.Timestamp.Nanos = channelHeader.Timestamp.Nanos
+			}
+		}
+		break
+	case cb.HeaderType_ORDERER_TRANSACTION:
+		break
+	case cb.HeaderType_DELIVER_SEEK_INFO:
+		break
+	default:
+		return transaction, fmt.Errorf("Unknown message")
+	}
+
+	return transaction, nil
+
+
+}
+
+
+
+// Query ...
+func (setup *BaseSetupImpl) Find(fcn string,key string) (string, error){
+	return GetValueFromKey(setup.chClient,setup.ChainCodeID,fcn,key),nil
+}
+
+func GetValueFromKey(chClient *channel.Client,ccID, fcn string,key string) string{
+
+	const (
+		maxRetries = 10
+		retrySleep = 500 * time.Millisecond
+	)
+
+	for r := 0; r < maxRetries; r++ {
+		response, err := chClient.Query(channel.Request{ChaincodeID: ccID, Fcn: "invoke", Args: CCFindArgs(fcn,key)},
+			channel.WithRetry(retry.DefaultChannelOpts))
+		if err == nil {
+			actual := string(response.Payload)
+			if actual != "" {
+				return actual
+			}
+		}
+
+		time.Sleep(retrySleep)
+	}
+
+	return ""
+}
+
+// Invoke ...
+func (setup *BaseSetupImpl) Invoke(key string, value string) (fabAPI.TransactionID, error) {
+	return SetKeyData(setup.orgChannelClientContext,setup.ChainCodeID,key,value),nil
+}
+
+
+//ResetKeys resets given set of keys in example cc to given value
+func SetKeyData(ctx contextAPI.ChannelProvider, chaincodeID, key string,value string) fabAPI.TransactionID{
+	chClient, err := channel.New(ctx)
+	if err != nil {print(err)}
+
+	// Synchronous transaction
+	respone, e := chClient.Execute(
+		channel.Request{
+			ChaincodeID: chaincodeID,
+			Fcn:         "invoke",
+			Args:        CCTxSetArgs(key, value),
+		},
+		channel.WithRetry(retry.DefaultChannelOpts))
+
+	if e != nil {print(e)}
+
+	return respone.TransactionID
+}
+
+func (setup *BaseSetupImpl)RangeQuery(startKey,endKey string) string {
+
+	const (
+		maxRetries = 10
+		retrySleep = 500 * time.Millisecond
+	)
+
+	for r := 0; r < maxRetries; r++ {
+		response, err := setup.chClient.Query(channel.Request{ChaincodeID: setup.ChainCodeID, Fcn: "invoke", Args: CCFindRangeArgs("rangeQuery",startKey,endKey)},
+			channel.WithRetry(retry.DefaultChannelOpts))
+		if err == nil {
+			actual := string(response.Payload)
+			if actual != "" {
+				return actual
+			}
+		}
+
+		time.Sleep(retrySleep)
+	}
+
+	return ""
+}
+
+func (setup *BaseSetupImpl)queryWithColor(color,indexName string) string {
+
+	const (
+		maxRetries = 10
+		retrySleep = 500 * time.Millisecond
+	)
+
+	for r := 0; r < maxRetries; r++ {
+		response, err := setup.chClient.Query(channel.Request{ChaincodeID: setup.ChainCodeID, Fcn: "invoke", Args: CCFindRangeArgs("richQueryColor",color,indexName)},
+			channel.WithRetry(retry.DefaultChannelOpts))
+		if err == nil {
+			actual := string(response.Payload)
+			if actual != "" {
+				return actual
+			}
+		}
+
+		time.Sleep(retrySleep)
+	}
+
+	return ""
+}
+
+
+func (setup *BaseSetupImpl)querySqlWithColor(sqlColor string) string {
+
+	const (
+		maxRetries = 10
+		retrySleep = 500 * time.Millisecond
+	)
+
+	for r := 0; r < maxRetries; r++ {
+		response, err := setup.chClient.Query(channel.Request{ChaincodeID: setup.ChainCodeID, Fcn: "invoke", Args: CCFindArgs("querySql",sqlColor)},
+			channel.WithRetry(retry.DefaultChannelOpts))
+		if err == nil {
+			actual := string(response.Payload)
+			if actual != "" {
+				return actual
+			}
+		}
+
+		time.Sleep(retrySleep)
+	}
+
+	return ""
+}
+
+
+func (setup *BaseSetupImpl)addIndexes(indexName,key1,key2 string) string {
+	fmt.Println("base 里的addIndexes start")
+	// Synchronous transaction
+	respone, e := setup.chClient.Execute(
+		channel.Request{
+			ChaincodeID: setup.ChainCodeID,
+			Fcn:         "invoke",
+			Args:        CCAddIndexsArgs("addIndexes", indexName,key1,key2),
+		},
+		channel.WithRetry(retry.DefaultChannelOpts))
+
+	if e != nil {print(e)}
+
+	fmt.Println("base 里的addIndexes 的返回：",string(respone.TransactionID))
+
+	return string(respone.TransactionID)
+
 }

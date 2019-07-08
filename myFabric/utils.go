@@ -88,7 +88,6 @@ func GetLocalEntityMatcher() string {
 	return viper.GetString("spi.sdk.localEntityMatcher")
 }
 
-
 // GenerateRandomID generates random ID
 func GenerateRandomID() string {
 	return randomString(10)
